@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 log "installing the complete ARM64 runtime into the mounted image"
 apt_retry update
 apt_retry install -y --no-install-recommends \
-  ca-certificates curl git openssh-server sudo \
+  ca-certificates curl git openssh-server sudo network-manager \
   e2fsprogs fdisk util-linux \
   libusb-1.0-0 libasound2 libjack-jackd2-0 libcurl4t64 \
   libfreetype6 libfontconfig1 fonts-dejavu-core \

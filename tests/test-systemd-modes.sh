@@ -66,6 +66,9 @@ grep -q '^Before=home-mpi-Music.mount home-mpi-maschinepi-samples.mount local-fs
   "$units/mpi-prepare-data.service"
 grep -q '^ExecStart=/usr/local/sbin/mk3-mode-selector --force-menu$' \
   "$units/mk3-mode-selector.service"
+grep -q '^Wants=NetworkManager.service$' "$units/mk3-mode-selector.service"
+grep -q '^After=local-fs.target NetworkManager.service$' \
+  "$units/mk3-mode-selector.service"
 grep -q '^TimeoutStartSec=infinity$' "$units/mk3-mode-selector.service"
 grep -q '^Requires=basic.target local-fs.target$' "$units/mode-selector.target"
 

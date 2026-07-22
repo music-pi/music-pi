@@ -7,7 +7,9 @@ and boot the selector first:
 - `mixxx.target` — pulls in Xvfb/Openbox/Mixxx/screen-daemon; `Conflicts=maschinepi.target`.
 - `mode-selector.target` — the default boot target; starts `mk3-mode-selector.service`.
 - `mk3-mode-selector.service` — opens the on-device menu on every boot and waits
-  without a timeout for a cold MK3 to enumerate.
+  without a timeout for a cold MK3 to enumerate. It also starts NetworkManager
+  so the selector can scan and save system-wide Wi-Fi profiles before a mode is
+  launched.
 
 Switching is `systemctl isolate <target>` — no reboot. The system default is
 `mode-selector.target`; neither app's own auto-start is enabled (the target owns

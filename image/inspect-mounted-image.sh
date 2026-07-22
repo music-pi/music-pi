@@ -88,6 +88,8 @@ done
 
 grep -q '^ExecStart=/usr/local/sbin/mk3-mode-selector --force-menu$' \
   "$root_mount/etc/systemd/system/mk3-mode-selector.service"
+grep -q '^Wants=NetworkManager.service$' \
+  "$root_mount/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^TimeoutStartSec=infinity$' \
   "$root_mount/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^Before=home-mpi-Music.mount home-mpi-maschinepi-samples.mount local-fs.target$' \

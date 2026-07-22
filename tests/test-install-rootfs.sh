@@ -40,6 +40,8 @@ grep -qx 'default_mode=maschinepi' "$root/var/lib/mk3-mode/config"
 [[ -L "$root/etc/systemd/system/local-fs.target.wants/mpi-prepare-data.service" ]]
 grep -q '^ExecStart=/usr/local/sbin/mk3-mode-selector --force-menu$' \
   "$root/etc/systemd/system/mk3-mode-selector.service"
+grep -q '^Wants=NetworkManager.service$' \
+  "$root/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^TimeoutStartSec=infinity$' \
   "$root/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^Before=home-mpi-Music.mount home-mpi-maschinepi-samples.mount local-fs.target$' \
@@ -50,6 +52,7 @@ grep -q 'ACT LED pattern: three short flashes' \
 [[ -f "$root/usr/share/mpi-station/samples/Drums/kick.wav" ]]
 grep -q 'KERNEL=="hidraw\*"' "$root/etc/udev/rules.d/99-mk3-controller.rules"
 [[ -x "$root/usr/local/sbin/mpi-station-provision-rootfs" ]]
+grep -q 'network-manager' "$repo_root/image/provision-rootfs"
 grep -q '^samples_dir=/home/mpi/maschinepi/samples$' \
   "$root/home/mpi/maschinepi/maschinepi.conf"
 grep -q 'config/mixxx-soundconfig.xml' "$repo_root/image/install-rootfs.sh"
