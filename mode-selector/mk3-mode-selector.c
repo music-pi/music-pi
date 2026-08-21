@@ -58,6 +58,7 @@ typedef struct {
     bool wifi_hidden_submit_requested;
     bool wifi_connect_requested;
     bool hidden_secured;
+    bool password_visible;
     char wifi_status[64];
     t9_input_t password;
 } selector_state_t;
@@ -89,6 +90,46 @@ static const uint8_t digits[][5] = {
     {0x18,0x14,0x12,0x7f,0x10}, {0x27,0x45,0x45,0x45,0x39},
     {0x3c,0x4a,0x49,0x49,0x30}, {0x01,0x71,0x09,0x05,0x03},
     {0x36,0x49,0x49,0x49,0x36}, {0x06,0x49,0x49,0x29,0x1e},
+};
+
+static const uint8_t lowercase_font[][5] = {
+    {0x20,0x54,0x54,0x54,0x78}, {0x7f,0x48,0x44,0x44,0x38},
+    {0x38,0x44,0x44,0x44,0x20}, {0x38,0x44,0x44,0x48,0x7f},
+    {0x38,0x54,0x54,0x54,0x18}, {0x08,0x7e,0x09,0x01,0x02},
+    {0x0c,0x52,0x52,0x52,0x3e}, {0x7f,0x08,0x04,0x04,0x78},
+    {0x00,0x44,0x7d,0x40,0x00}, {0x20,0x40,0x44,0x3d,0x00},
+    {0x7f,0x10,0x28,0x44,0x00}, {0x00,0x41,0x7f,0x40,0x00},
+    {0x7c,0x04,0x18,0x04,0x78}, {0x7c,0x08,0x04,0x04,0x78},
+    {0x38,0x44,0x44,0x44,0x38}, {0x7c,0x14,0x14,0x14,0x08},
+    {0x08,0x14,0x14,0x18,0x7c}, {0x7c,0x08,0x04,0x04,0x08},
+    {0x48,0x54,0x54,0x54,0x20}, {0x04,0x3f,0x44,0x40,0x20},
+    {0x3c,0x40,0x40,0x20,0x7c}, {0x1c,0x20,0x40,0x20,0x1c},
+    {0x3c,0x40,0x30,0x40,0x3c}, {0x44,0x28,0x10,0x28,0x44},
+    {0x0c,0x50,0x50,0x50,0x3c}, {0x44,0x64,0x54,0x4c,0x44},
+};
+
+typedef struct {
+    char character;
+    uint8_t columns[5];
+} symbol_glyph_t;
+
+static const symbol_glyph_t symbol_font[] = {
+    {'~',{0x08,0x04,0x08,0x10,0x08}}, {'`',{0x00,0x01,0x02,0x04,0x00}},
+    {'<',{0x08,0x14,0x22,0x41,0x00}}, {'>',{0x00,0x41,0x22,0x14,0x08}},
+    {'|',{0x00,0x00,0x7f,0x00,0x00}}, {'$',{0x24,0x2a,0x7f,0x2a,0x12}},
+    {'%',{0x23,0x13,0x08,0x64,0x62}}, {'&',{0x36,0x49,0x55,0x22,0x50}},
+    {'^',{0x04,0x02,0x01,0x02,0x04}}, {'+',{0x08,0x08,0x3e,0x08,0x08}},
+    {'=',{0x14,0x14,0x14,0x14,0x14}}, {'#',{0x14,0x7f,0x14,0x7f,0x14}},
+    {'*',{0x14,0x08,0x3e,0x08,0x14}}, {':',{0x00,0x36,0x36,0x00,0x00}},
+    {';',{0x00,0x56,0x36,0x00,0x00}}, {'/',{0x20,0x10,0x08,0x04,0x02}},
+    {'\\',{0x02,0x04,0x08,0x10,0x20}}, {'"',{0x00,0x07,0x00,0x07,0x00}},
+    {'\'',{0x00,0x00,0x07,0x00,0x00}}, {'(',{0x00,0x1c,0x22,0x41,0x00}},
+    {')',{0x00,0x41,0x22,0x1c,0x00}}, {'[',{0x00,0x7f,0x41,0x41,0x00}},
+    {']',{0x00,0x41,0x41,0x7f,0x00}}, {'{',{0x08,0x36,0x41,0x41,0x00}},
+    {'}',{0x00,0x41,0x41,0x36,0x08}}, {'.',{0x00,0x60,0x60,0x00,0x00}},
+    {',',{0x00,0x40,0x20,0x00,0x00}}, {'!',{0x00,0x00,0x5f,0x00,0x00}},
+    {'?',{0x02,0x01,0x51,0x09,0x06}}, {'@',{0x3e,0x41,0x5d,0x55,0x1e}},
+    {'_',{0x40,0x40,0x40,0x40,0x40}}, {'-',{0x08,0x08,0x08,0x08,0x08}},
 };
 
 static int64_t monotonic_ms(void)
@@ -208,9 +249,11 @@ static uint16_t rgb565(unsigned r, unsigned g, unsigned b)
 
 static const uint8_t* glyph_for(char character)
 {
-    if (character >= 'a' && character <= 'z') character -= 32;
+    if (character >= 'a' && character <= 'z') return lowercase_font[character - 'a'];
     if (character >= 'A' && character <= 'Z') return font[character - 'A'];
     if (character >= '0' && character <= '9') return digits[character - '0'];
+    for (size_t i = 0; i < sizeof symbol_font / sizeof symbol_font[0]; ++i)
+        if (symbol_font[i].character == character) return symbol_font[i].columns;
     return NULL;
 }
 
@@ -405,19 +448,16 @@ static void render_wifi_password(mk3_t* device, const selector_state_t* state)
     char ssid[80];
     char length[32];
     char visible_input[25];
-    char raw_input[T9_TEXT_MAX + 1];
     bool hidden_ssid = state->view == VIEW_WIFI_HIDDEN_SSID;
-    t9_input_text(&state->password, raw_input, sizeof raw_input);
-    size_t input_length = strlen(raw_input);
+    size_t input_length = t9_input_length(&state->password);
     if (hidden_ssid) {
         snprintf(ssid, sizeof ssid, "SECURITY %s", state->hidden_secured ? "SECURE" : "OPEN");
-        display_safe(visible_input, sizeof visible_input, raw_input);
+        t9_input_display(&state->password, true, visible_input, sizeof visible_input);
         snprintf(length, sizeof length, "SSID LENGTH %zu", input_length);
     } else {
         display_safe(ssid, sizeof ssid, state->wifi_networks[state->wifi_selected].ssid);
-        size_t stars = input_length < sizeof visible_input - 1 ? input_length : sizeof visible_input - 1;
-        memset(visible_input, 'X', stars);
-        visible_input[stars] = '\0';
+        t9_input_display(&state->password, state->password_visible,
+                         visible_input, sizeof visible_input);
         snprintf(length, sizeof length, "PASSWORD LENGTH %zu", input_length);
     }
 
@@ -429,7 +469,10 @@ static void render_wifi_password(mk3_t* device, const selector_state_t* state)
     char password_status[64];
     display_safe(password_status, sizeof password_status, state->wifi_status);
     draw_text(left, 28, 214, password_status, 2, orange);
-    draw_text(left, 28, 240, hidden_ssid ? "D7 TOGGLE SECURITY" : "PASSWORD IS HIDDEN", 2, dim);
+    draw_text(left, 28, 240,
+              hidden_ssid ? "D7 TOGGLE SECURITY" :
+              (state->password_visible ? "RELEASE D7 TO HIDE" : "HOLD D7 TO SHOW"),
+              2, dim);
 
     char layer[32];
     snprintf(layer, sizeof layer, "T9 INPUT  %s", t9_input_layer_name(&state->password));
@@ -439,17 +482,23 @@ static void render_wifi_password(mk3_t* device, const selector_state_t* state)
         draw_text(right, 22, 104, "SLASH  QUOTE  BRACK CANCEL", 2, white);
         draw_text(right, 22, 142, "MONEY  PLUS   HASH  LAYER", 2, white);
         draw_text(right, 22, 180, "TILDE  ZERO   MORE  ENTER", 2, white);
-    } else {
+    } else if (state->password.layer == T9_LAYER_UPPER) {
         draw_text(right, 22, 66, "SPACE  ABC2   DEF3  BACK", 2, white);
         draw_text(right, 22, 104, "GHI4   JKL5   MNO6  CANCEL", 2, white);
         draw_text(right, 22, 142, "PQRS7  TUV8   WXYZ9 LAYER", 2, white);
-        draw_text(right, 22, 180, "HASH   ZERO   STAR  ENTER", 2, white);
+        draw_text(right, 22, 180, "HASH1  ZERO   STAR  ENTER", 2, white);
+    } else {
+        draw_text(right, 22, 66, "SPACE  abc2   def3  BACK", 2, white);
+        draw_text(right, 22, 104, "ghi4   jkl5   mno6  CANCEL", 2, white);
+        draw_text(right, 22, 142, "pqrs7  tuv8   wxyz9 LAYER", 2, white);
+        draw_text(right, 22, 180, "HASH1  ZERO   STAR  ENTER", 2, white);
     }
     draw_text(right, 22, 232, "P4 ENTER P12 CANCEL", 2, dim);
 
     mk3_display_disable_partial_rendering(device, true);
     (void)mk3_display_draw(device, 0, left);
     (void)mk3_display_draw(device, 1, right);
+    explicit_bzero(visible_input, sizeof visible_input);
     free(left);
     free(right);
 }
@@ -560,6 +609,7 @@ static void choose_wifi_network(selector_state_t* state)
     }
     if (network->secured) {
         t9_input_reset(&state->password);
+        state->password_visible = false;
         snprintf(state->wifi_status, sizeof state->wifi_status, "ENTER PASSWORD");
         state->view = VIEW_WIFI_PASSWORD;
         state->dirty = true;
@@ -572,6 +622,11 @@ static void button_callback(const char* name, bool pressed, void* userdata)
 {
     selector_state_t* state = userdata;
     if (strcmp(name, "shift") == 0) state->shift = pressed;
+    if (state->view == VIEW_WIFI_PASSWORD && strcmp(name, "d7") == 0) {
+        state->password_visible = pressed;
+        state->dirty = true;
+        return;
+    }
     if (!pressed) return;
     if (state->view == VIEW_WIFI_PASSWORD || state->view == VIEW_WIFI_HIDDEN_SSID) {
         if (strcmp(name, "navPush") == 0) {
@@ -583,6 +638,7 @@ static void button_callback(const char* name, bool pressed, void* userdata)
         } else if (strcmp(name, "d8") == 0) {
             t9_input_reset(&state->password);
             state->view = VIEW_WIFI_LIST;
+            state->password_visible = false;
             state->dirty = true;
         }
         return;
@@ -592,6 +648,7 @@ static void button_callback(const char* name, bool pressed, void* userdata)
         else if (strcmp(name, "d6") == 0) {
             t9_input_reset(&state->password);
             state->hidden_secured = true;
+            state->password_visible = false;
             snprintf(state->wifi_status, sizeof state->wifi_status, "ENTER HIDDEN SSID");
             state->view = VIEW_WIFI_HIDDEN_SSID;
             state->dirty = true;
@@ -629,7 +686,10 @@ static void pad_callback(uint8_t pad_number, bool pressed, uint16_t pressure,
     if (event == T9_EVENT_SUBMIT) {
         if (state->view == VIEW_WIFI_PASSWORD) state->wifi_connect_requested = true;
         else state->wifi_hidden_submit_requested = true;
-    } else if (event == T9_EVENT_CANCEL) state->view = VIEW_WIFI_LIST;
+    } else if (event == T9_EVENT_CANCEL) {
+        state->password_visible = false;
+        state->view = VIEW_WIFI_LIST;
+    }
     if (event != T9_EVENT_NONE) state->dirty = true;
 }
 
@@ -700,6 +760,7 @@ static void keyboard_events(keyboard_set_t* keyboards, selector_state_t* state)
                     t9_input_reset(&state->password);
                     state->view = VIEW_WIFI_LIST;
                     state->dirty = true;
+                    state->password_visible = false;
                 }
                 continue;
             }
@@ -1029,6 +1090,7 @@ int main(int argc, char** argv)
                 hidden->hidden = true;
                 state.wifi_selected = index;
                 t9_input_reset(&state.password);
+                state.password_visible = false;
                 if (hidden->secured) {
                     snprintf(state.wifi_status, sizeof state.wifi_status, "ENTER PASSWORD");
                     state.view = VIEW_WIFI_PASSWORD;
@@ -1041,6 +1103,7 @@ int main(int argc, char** argv)
             state.dirty = true;
         }
         if (state.wifi_connect_requested && state.wifi_count > 0) {
+            state.password_visible = false;
             wifi_network_t* network = &state.wifi_networks[state.wifi_selected];
             char password[T9_TEXT_MAX + 1];
             t9_input_text(&state.password, password, sizeof password);

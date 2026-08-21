@@ -30,11 +30,11 @@ static void test_t9_layers_and_editing(void)
     char text[80];
     t9_input_reset(&input);
     (void)t9_input_press(&input, 8, 100);
-    assert(strcmp(t9_input_layer_name(&input), "ABC") == 0);
+    assert(strcmp(t9_input_layer_name(&input), "UPPER") == 0);
     (void)t9_input_press(&input, 14, 200);
     (void)t9_input_tick(&input, 1100);
     (void)t9_input_press(&input, 8, 1200);
-    assert(strcmp(t9_input_layer_name(&input), "SYM") == 0);
+    assert(strcmp(t9_input_layer_name(&input), "SYMBOLS") == 0);
     (void)t9_input_press(&input, 15, 1300);
     (void)t9_input_press(&input, 15, 1400);
     (void)t9_input_press(&input, 16, 1500);
@@ -42,6 +42,27 @@ static void test_t9_layers_and_editing(void)
     assert(strcmp(text, "A") == 0);
     assert(t9_input_press(&input, 12, 1600) == T9_EVENT_CANCEL);
     assert(t9_input_length(&input) == 0);
+}
+
+static void test_t9_digit_one_and_password_reveal(void)
+{
+    t9_input_t input;
+    char text[80];
+    t9_input_reset(&input);
+    assert(strcmp(t9_input_layer_name(&input), "LOWER") == 0);
+
+    (void)t9_input_press(&input, 1, 100);
+    (void)t9_input_press(&input, 1, 200);
+    (void)t9_input_press(&input, 14, 1000);
+    (void)t9_input_press(&input, 8, 1900);
+    (void)t9_input_press(&input, 14, 2000);
+    (void)t9_input_press(&input, 8, 2900);
+    (void)t9_input_press(&input, 15, 3000);
+
+    t9_input_display(&input, false, text, sizeof text);
+    assert(strcmp(text, "XXXX") == 0);
+    t9_input_display(&input, true, text, sizeof text);
+    assert(strcmp(text, "1aA@") == 0);
 }
 
 static void test_nmcli_parser(void)
@@ -114,6 +135,7 @@ int main(void)
 {
     test_t9_multitap();
     test_t9_layers_and_editing();
+    test_t9_digit_one_and_password_reveal();
     test_nmcli_parser();
     test_wifi_secret_pipe_and_hidden_flag();
     puts("selector support tests: PASS");
