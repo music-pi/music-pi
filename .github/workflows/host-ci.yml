@@ -28,7 +28,12 @@ jobs:
           persist-credentials: false
 
       - name: Install host dependencies
-        run: sudo apt-get update && sudo apt-get install --yes ripgrep
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libusb-1.0-0-dev \
+            pkg-config \
+            ripgrep
 
       - name: Run host gates
         run: |
