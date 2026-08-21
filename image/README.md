@@ -17,7 +17,8 @@ headroom. Two small labeled ext4 bootstrap partitions are appended:
 
 - `MIXXX_LIBRARY`, mounted at `/home/mpi/Music`.
 - `MPI_SAMPLES`, mounted at
-  `/home/mpi/maschinepi/samples` and preloaded with the pinned sample set.
+  `/home/mpi/maschinepi/samples`. The public image starts with an empty sample
+  library; an approved seed directory is copied when present.
 
 On the first boot, before either filesystem mounts, the image divides every
 remaining sector on the physical card equally between these two partitions,

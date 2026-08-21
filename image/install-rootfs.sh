@@ -119,8 +119,10 @@ EOF
 chown -R 1000:1000 "$root/home/mpi"
 
 install -d -m 755 "$root/usr/share/mpi-station/samples"
-cp -a "$release_tree/external/maschinepi-te/samples/." \
-  "$root/usr/share/mpi-station/samples/"
+sample_source="$release_tree/external/maschinepi-te/samples"
+if [[ -d "$sample_source" ]]; then
+  cp -a "$sample_source/." "$root/usr/share/mpi-station/samples/"
+fi
 
 install -d -m 755 "$root/etc/sysctl.d" "$root/etc/udev/rules.d"
 cat > "$root/etc/sysctl.d/99-realtime-audio.conf" <<'EOF'

@@ -53,7 +53,7 @@ sha256sum -c mpi-station-vVERSION.img.xz.sha256
 1. Insert the SD card, connect the MK3 to the Pi over USB, and power both on.
 2. The first boot takes a few minutes: MusicPI expands to fill your card and
    sets up two storage areas — one for your **Mixxx music library**, one for
-   your **MPI samples** (preloaded with a starter set). This only happens once.
+   your **MPI samples**. This only happens once.
 3. When it settles, the MK3 screens light up and you're ready.
 
 **Default login** (if you connect a keyboard/SSH): `mpi` / `musicpi`. Change
@@ -73,8 +73,8 @@ only one runs at a time, so each gets the full machine.
 ## 5. First sounds
 
 ### In MusicPI (DAW) mode
-- The 16 pads trigger sounds. Hit them — the starter samples are already loaded.
-- Load your own sample to a pad from the browser, then play and sequence it.
+- Load a sample from the browser and assign it to a pad.
+- The 16 pads trigger your assigned sounds; play and sequence them.
 - Press **Play** to run the pattern; the pads step through your sequence.
 
 See the [MusicPI DAW repository](https://github.com/music-pi/daw) for feature

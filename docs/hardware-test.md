@@ -58,8 +58,9 @@ When the card is inspected on another Linux machine it exposes four filesystems:
 - `MPI_SAMPLES`
 
 On the Pi, the last two mount at `/home/mpi/Music` and
-`/home/mpi/maschinepi/samples`; the sample partition already contains the
-pinned starter samples. During the first boot only, their partition boundary is
+`/home/mpi/maschinepi/samples`; the sample partition contains a README and any
+approved sample seed supplied by the release. During the first boot only, its
+boundary is
 adjusted so each receives half of all card space remaining after root. The Pi
 ACT LED repeats three short flashes during this operation. If the MK3 has
 enumerated, both screens show milestone progress through resize, format, sample

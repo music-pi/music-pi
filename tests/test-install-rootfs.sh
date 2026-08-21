@@ -63,4 +63,15 @@ grep -q 'mixxx_deb="$STATE_DIR/mixxx.deb"' "$repo_root/image/provision-rootfs"
 ! grep -q 'mixxx_2.6.0-beta-1_arm64.deb' "$repo_root/image/provision-rootfs"
 grep -q 'mpi-station' "$root/etc/hosts"
 
+empty_root="$tmp_dir/empty-root"
+empty_boot="$tmp_dir/empty-boot"
+mkdir -p "$empty_root/etc" "$empty_boot"
+printf '127.0.1.1 raspberrypi\n' > "$empty_root/etc/hosts"
+rm -rf "$release/external/maschinepi-te/samples"
+"$repo_root/image/install-rootfs.sh" \
+  --root "$empty_root" --boot "$empty_boot" --release-tree "$release" \
+  --password-file "$tmp_dir/password"
+[[ -d "$empty_root/usr/share/mpi-station/samples" ]]
+[[ -z "$(find "$empty_root/usr/share/mpi-station/samples" -type f -print -quit)" ]]
+
 echo "install-rootfs fixture: PASS"

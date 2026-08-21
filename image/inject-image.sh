@@ -115,7 +115,11 @@ LABEL=MIXXX_LIBRARY /home/mpi/Music ext4 defaults,noatime,nofail,x-systemd.devic
 LABEL=MPI_SAMPLES /home/mpi/maschinepi/samples ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2
 EOF
 
-cp -a "$release_tree/external/maschinepi-te/samples/." "$samples_mount/"
+sample_source="$release_tree/external/maschinepi-te/samples"
+if [[ -d "$sample_source" ]]; then
+  cp -a "$sample_source/." "$samples_mount/"
+fi
+printf '%s\n' 'MusicPI samples partition - copy samples here.' > "$samples_mount/README.txt"
 printf '%s\n' 'Mixxx library partition - copy music files here.' > "$mixxx_mount/README.txt"
 chown -R 1000:1000 "$mixxx_mount" "$samples_mount"
 

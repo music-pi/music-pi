@@ -46,7 +46,7 @@ it to an SD card.
   device on an untrusted network.
 - Two storage areas are created automatically and grow to fill the card:
   `MIXXX_LIBRARY` → `/home/mpi/Music`, and `MPI_SAMPLES` →
-  `/home/mpi/maschinepi/samples` (preloaded with a starter sample set).
+  `/home/mpi/maschinepi/samples` (ready for your own samples).
 
 ## What this repository is
 
