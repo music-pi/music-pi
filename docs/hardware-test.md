@@ -10,6 +10,7 @@ Download a stock Raspberry Pi OS Lite **arm64** image, then run:
 ```bash
 ./image/build-image.sh \
   --base /path/to/raspios-lite-arm64.img.xz \
+  --mixxx-deb /path/to/mixxx-arm64.deb \
   --output image/output/mpi-station-test.img \
   --compress
 ```
@@ -46,7 +47,7 @@ package installation, or automatic reboot. Attach the MK3 before power-on. The
 image login is:
 
 - user: `mpi`
-- password: `maschinepi` (or the `--password` value used at build time)
+- password: `musicpi` (or the value supplied through `--password-file`)
 - hostname: `mpi-station`
 
 When the card is inspected on another Linux machine it exposes four filesystems:

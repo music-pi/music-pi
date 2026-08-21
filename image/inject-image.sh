@@ -4,7 +4,7 @@ set -euo pipefail
 image_path="${1:?image path required}"
 release_tree="${2:?release tree required}"
 artifacts_dir="${3:?artifact directory required}"
-password="${4:-maschinepi}"
+password_file="${4:?password file required}"
 original_size_bytes="${5:?original image size required}"
 rootfs_headroom_mb="${6:?rootfs headroom required}"
 mixxx_library_mb="${7:?Mixxx library size required}"
@@ -108,7 +108,7 @@ mount "$samples_loop" "$samples_mount"
   --boot "$boot_mount" \
   --release-tree "$release_tree" \
   --artifacts-dir "$artifacts_dir" \
-  --password "$password"
+  --password-file "$password_file"
 
 cat >> "$root_mount/etc/fstab" <<'EOF'
 LABEL=MIXXX_LIBRARY /home/mpi/Music ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2

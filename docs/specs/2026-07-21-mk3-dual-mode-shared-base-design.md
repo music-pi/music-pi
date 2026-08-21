@@ -149,13 +149,13 @@ The integrator repo contains: the two systemd targets, `mode-selector.target`, t
 
 The "one shared `libmk3` submodule" premise only works if there is genuinely one libmk3. Today there are two:
 
-- **`maschinepi-te`** consumes libmk3 as a **git submodule** (`external/mk3` → `git@github.com:dkzeb/libmk3.git`) — the canonical repo, and per the maintainer the **newest** version. A C++ app layer (`src/control/Mk3Controller`, `src/devices/Mk3Device`) and parity tests (`Mk3DisplayParityTests`, `Mk3HidMapParityTests`, `Mk3InputReportParityTests`) sit on top and stay in the app repo.
+- **`maschinepi-te`** consumes libmk3 as a **git submodule** (`external/mk3` → `https://github.com/music-pi/libmk3.git`) — the canonical repo, and per the maintainer the **newest** version. A C++ app layer (`src/control/Mk3Controller`, `src/devices/Mk3Device`) and parity tests (`Mk3DisplayParityTests`, `Mk3HidMapParityTests`, `Mk3InputReportParityTests`) sit on top and stay in the app repo.
 - **`mixxx-mk3`** carries a **stale vendored copy** of libmk3 in `external/mk3` (no `.gitmodules` — pasted source), consumed by its screen-daemon, `mk3_cli`, and Mixxx HID path.
 
 **Unification work (do this first):**
-1. Canonicalize on **`dkzeb/libmk3`** at `maschinepi-te`'s (newest) ref as the single source of truth.
-2. **Audit the drift** between Mixxx's vendored copy and canonical libmk3 — port any Mixxx-only fixes/workarounds that aren't upstream (e.g. the partial-display-rendering workaround `mk3_display_disable_partial_rendering`, any input/output-map deltas) **into** `dkzeb/libmk3`, so nothing regresses when Mixxx switches over. The parity tests in `maschinepi-te` are the reference for correct maps.
-3. Convert `mixxx-mk3/external/mk3` from a vendored copy to a **submodule** of `dkzeb/libmk3` (or have the integrator provide libmk3 and Mixxx build against it), removing the duplicate source.
+1. Canonicalize on **`music-pi/libmk3`** at the DAW's newest ref as the single source of truth.
+2. **Audit the drift** between Mixxx's vendored copy and canonical libmk3 — port any Mixxx-only fixes/workarounds that aren't upstream (e.g. the partial-display-rendering workaround `mk3_display_disable_partial_rendering`, any input/output-map deltas) **into** `music-pi/libmk3`, so nothing regresses when Mixxx switches over. The parity tests in the DAW are the reference for correct maps.
+3. Convert `mixxx-mk3/external/mk3` from a vendored copy to a **submodule** of `music-pi/libmk3` (or have the integrator provide libmk3 and Mixxx build against it), removing the duplicate source.
 4. The integrator repo then references libmk3 **once**; both modes and the `mk3-mode-selector` build against that single submodule.
 
 This is a prerequisite, not deferred cleanup: the selector, both modes' MK3 access, and reproducible builds all depend on a single libmk3.

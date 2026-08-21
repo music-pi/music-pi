@@ -26,7 +26,7 @@ making sound.
 ## 1. Get the image
 
 Download the latest `mpi-station-*.img.xz` and its `.sha256` from the
-[Releases page](https://github.com/dkzeb/mpi/releases/).
+[Releases page](https://github.com/music-pi/music-pi/releases/).
 
 ## 2. Flash the SD card
 
@@ -56,7 +56,7 @@ sha256sum -c mpi-station-vVERSION.img.xz.sha256
    your **MPI samples** (preloaded with a starter set). This only happens once.
 3. When it settles, the MK3 screens light up and you're ready.
 
-**Default login** (if you connect a keyboard/SSH): `mpi` / `maschinepi`. Change
+**Default login** (if you connect a keyboard/SSH): `mpi` / `musicpi`. Change
 the password before putting the device on a network you don't trust.
 
 ## 4. Choose your mode
@@ -77,7 +77,8 @@ only one runs at a time, so each gets the full machine.
 - Load your own sample to a pad from the browser, then play and sequence it.
 - Press **Play** to run the pattern; the pads step through your sequence.
 
-Full feature docs will be linked once the MusicPI DAW repo is published.
+See the [MusicPI DAW repository](https://github.com/music-pi/daw) for feature
+documentation.
 
 ### In MixxxDJ mode
 - The MK3 screens mirror Mixxx's decks.
@@ -85,7 +86,8 @@ Full feature docs will be linked once the MusicPI DAW repo is published.
   and filters.
 - Beatmatch and mix as you would in Mixxx — the MK3 is your controller.
 
-Controller-specific docs will be linked once the MixxxDJ repo is published.
+See the [Mixxx MK3 repository](https://github.com/music-pi/mixxx-mk3) for
+controller-specific documentation.
 
 ## Adding your own music and samples
 
@@ -101,7 +103,7 @@ in the browser.
 
 ## Updating
 
-Grab the latest image from the [Releases page](https://github.com/dkzeb/mpi/releases)
+Grab the latest image from the [Releases page](https://github.com/music-pi/music-pi/releases)
 and re-flash, or use the built-in update flow if your release includes it.
 Your data partitions (library and samples) are separate from the system, so a
 re-flash keeps your content — but back up anything important first.
@@ -130,12 +132,10 @@ stayed (**MPI**), but the M now stands for **Music**.
 
 MusicPI is open source. The pieces:
 
-- **[dkzeb/mpi](https://github.com/dkzeb/mpi)** — this project: the image, releases, and docs.
-- **mpi-te** — the MusicPI DAW (Tracktion Engine).
-- **mpi-mixxx** — the MixxxDJ integration.
-- **libmk3** — the shared MK3 hardware driver.
-
-_Component repo links to be added on repo publication._
+- **[music-pi/music-pi](https://github.com/music-pi/music-pi)** — image, releases, and docs.
+- **[music-pi/daw](https://github.com/music-pi/daw)** — MusicPI DAW (Tracktion Engine).
+- **[music-pi/mixxx-mk3](https://github.com/music-pi/mixxx-mk3)** — MixxxDJ integration.
+- **[music-pi/libmk3](https://github.com/music-pi/libmk3)** — shared MK3 hardware driver.
 
 Found a bug or have an idea? Open an issue on the relevant repo. If you'd like to
 support the work, see the sponsor links on the project pages.

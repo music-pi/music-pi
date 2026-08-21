@@ -22,9 +22,11 @@ printf '// controller fixture\n' > \
   "$release/external/mixxx-mk3/mapping/Native-Instruments-Maschine-MK3.js"
 printf '<skin/>\n' > "$release/external/mixxx-mk3/skin/MK3/skin.xml"
 printf 'sample fixture\n' > "$release/external/maschinepi-te/samples/Drums/kick.wav"
+printf '%s\n' test-only > "$tmp_dir/password"
+chmod 600 "$tmp_dir/password"
 
 "$repo_root/image/install-rootfs.sh" \
-  --root "$root" --boot "$boot" --release-tree "$release" --password test-only
+  --root "$root" --boot "$boot" --release-tree "$release" --password-file "$tmp_dir/password"
 
 [[ -L "$root/etc/systemd/system/default.target" ]]
 [[ "$(readlink "$root/etc/systemd/system/default.target")" == /etc/systemd/system/mode-selector.target ]]
@@ -57,6 +59,8 @@ grep -q '^samples_dir=/home/mpi/maschinepi/samples$' \
   "$root/home/mpi/maschinepi/maschinepi.conf"
 grep -q 'config/mixxx-soundconfig.xml' "$repo_root/image/install-rootfs.sh"
 [[ -f "$root/var/lib/mpi-station/password.hash" ]]
+grep -q 'mixxx_deb="$STATE_DIR/mixxx.deb"' "$repo_root/image/provision-rootfs"
+! grep -q 'mixxx_2.6.0-beta-1_arm64.deb' "$repo_root/image/provision-rootfs"
 grep -q 'mpi-station' "$root/etc/hosts"
 
 echo "install-rootfs fixture: PASS"

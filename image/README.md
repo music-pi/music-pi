@@ -6,8 +6,10 @@ injection approach: supply a stock Raspberry Pi OS Lite arm64 image and perform
 all compilation, package installation, and provisioning on the host.
 
 ```bash
-./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --compress
+./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --mixxx-deb /path/to/mixxx-arm64.deb --compress
 ```
+
+`--mixxx-deb` is required and must point to the verified ARM64 Mixxx release package; binary packages are release assets, not source-repository content.
 
 The mount/injection step runs in the existing `pi-gen:latest` helper container,
 so host sudo is not required. The root filesystem receives 2048 MiB of build
@@ -30,7 +32,7 @@ performed by the Pi. Pass
 `--maschinepi-binary /path/to/arm64/maschinepi` to reuse an existing ARM64
 artifact.
 
-The injected test login is `mpi` / `maschinepi` unless `--password` is supplied.
+The injected test login is `mpi` / `musicpi` unless `--password-file` is supplied.
 Change it before putting the device on an untrusted network.
 
 The build must reconcile shared components touched by both provisioners,

@@ -1,6 +1,6 @@
 # AGENTS.md — contributor guide
 
-This is **dkzeb/mpi**, the integrator / delivery repo for the MusicPI MK3
+This is **music-pi/music-pi**, the integrator / delivery repo for the MusicPI MK3
 dual-mode rig: one Raspberry Pi 4 + Native Instruments Maschine MK3 that boots
 into **either** the MusicPI DAW **or** MixxxDJ, chosen from the MK3 boot selector.
 Start from the [README](README.md).
@@ -39,8 +39,8 @@ The authoritative design is in `docs/specs/`. The release process is in
 ## Build & test
 
 ```bash
-git clone --recursive git@github.com:dkzeb/mpi.git && cd mpi
+git clone --recursive https://github.com/music-pi/music-pi.git && cd mpi
 ./scripts/check-submodules.sh
-./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --compress
+./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --mixxx-deb /path/to/mixxx-arm64.deb --compress
 ./tests/test-systemd-modes.sh && ./tests/test-install-rootfs.sh && ./tests/test-mode-selector.sh
 ```
