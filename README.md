@@ -80,7 +80,8 @@ See the focused [beta blocker list](docs/beta-blocker-triage.md) for detail.
 ## Build the image yourself (developers)
 
 ```bash
-git clone --recursive https://github.com/music-pi/music-pi.git
+git -c url.https://github.com/.insteadOf=git@github.com: clone --recursive \
+  https://github.com/music-pi/music-pi.git
 cd music-pi
 git submodule update --init --recursive        # if not cloned with --recursive
 ./scripts/check-submodules.sh

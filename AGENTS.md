@@ -39,7 +39,8 @@ The authoritative design is in `docs/specs/`. The release process is in
 ## Build & test
 
 ```bash
-git clone --recursive https://github.com/music-pi/music-pi.git && cd mpi
+git -c url.https://github.com/.insteadOf=git@github.com: clone --recursive \
+  https://github.com/music-pi/music-pi.git && cd music-pi
 ./scripts/check-submodules.sh
 ./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --mixxx-deb /path/to/mixxx-arm64.deb --compress
 ./tests/test-systemd-modes.sh && ./tests/test-install-rootfs.sh && ./tests/test-mode-selector.sh

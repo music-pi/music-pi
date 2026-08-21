@@ -51,7 +51,8 @@ The component repos are:
 - [ ] Confirm a clean, from-scratch checkout builds (catches missing-file /
       submodule-URL problems before a device ever sees them):
       ```bash
-      rm -rf /tmp/mpi-verify && git clone --recursive . /tmp/mpi-verify
+      rm -rf /tmp/mpi-verify
+      git -c url.https://github.com/.insteadOf=git@github.com: clone --recursive . /tmp/mpi-verify
       # build each component per its README; both must configure and compile
       ```
 - [ ] Host-side integrator checks pass:
