@@ -34,5 +34,5 @@ jobs:
         run: |
           ./scripts/check-submodules.sh
           ./tests/test-systemd-modes.sh
-          ./tests/test-install-rootfs.sh
+          sudo ./tests/test-install-rootfs.sh
           ./tests/test-mode-selector.sh
