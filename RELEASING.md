@@ -10,9 +10,9 @@ The component repos are:
 | Repo | Role | License |
 |---|---|---|
 | libmk3 | Shared MK3 driver | MIT |
-| maschinepi-te (MusicPI DAW) | MusicPI DAW | GPLv3 |
+| daw (MusicPI DAW) | MusicPI DAW | GPLv3 |
 | mixxx-mk3 (MixxxDJ) | MixxxDJ integration | GPLv2-or-later |
-| mpi-station (this repo) | Integrator / image / OTA | GPLv3 |
+| music-pi (this repo) | Integrator / image / update policy | GPLv3 |
 
 ## Versioning
 
@@ -22,7 +22,7 @@ The component repos are:
   pins. The release image is version-stamped:
   `mpi-station-vMAJOR.MINOR.PATCH[-PRERELEASE].img.xz`.
 - A release is defined entirely by the submodule commit pins recorded in this
-  repo at the tag. OTA advances the whole pinned set together.
+  repo at the tag. Current updates use the verified release image.
 
 ---
 
@@ -30,7 +30,7 @@ The component repos are:
 
 - [ ] The finalization PR (licensing, README/AGENTS, funding, SPDX headers) is
       merged in every component repo.
-- [ ] `.gitmodules` submodule URLs are **HTTPS** (`https://github.com/dkzeb/...`)
+- [ ] `.gitmodules` submodule URLs are **HTTPS** (`https://github.com/music-pi/...`)
       in this repo and in mixxx-mk3, so anonymous/CI clones can init them.
 - [ ] `LICENSE` present in all four repos; copyright holder asserted.
 - [ ] `.github/FUNDING.yml` has real handles (and GitHub Sponsors is enabled for
@@ -51,7 +51,8 @@ The component repos are:
 - [ ] Confirm a clean, from-scratch checkout builds (catches missing-file /
       submodule-URL problems before a device ever sees them):
       ```bash
-      rm -rf /tmp/mpi-verify && git clone --recursive . /tmp/mpi-verify
+      rm -rf /tmp/mpi-verify
+      git -c url.https://github.com/.insteadOf=git@github.com: clone --recursive . /tmp/mpi-verify
       # build each component per its README; both must configure and compile
       ```
 - [ ] Host-side integrator checks pass:
@@ -65,11 +66,13 @@ The component repos are:
 ## Phase 2 — Build the image
 
 - [ ] Obtain a stock Raspberry Pi OS Lite **arm64** base image.
-- [ ] Build (change the default login before any public build):
+- [ ] Build with the documented public default (`mpi` / `musicpi`), or use a
+      private password file for a non-public image:
       ```bash
       ./image/build-image.sh \
         --base /path/to/raspios-lite-arm64.img.xz \
-        --password '<release-password>' \
+        --mixxx-deb /path/to/mixxx-arm64.deb \
+        --password-file /secure/path/release-password \
         --compress
       ```
 - [ ] Rename the verified output for the release, for example
@@ -108,15 +111,11 @@ Do not proceed to publish if this gate fails.
 
 ## Phase 5 — Publish
 
-- [ ] **Rename repos to final slugs** (GitHub redirects old URLs automatically):
-      rename the legacy `dkzeb/mpi` out of the way (e.g. `dkzeb/mpi-legacy`),
-      then `dkzeb/mpi-station` → `dkzeb/mpi`, `dkzeb/maschinepi-te` →
-      `dkzeb/mpi-te`, `dkzeb/mixxx-mk3` → `dkzeb/mpi-mixxx`. Update local remotes
-      and any submodule URLs (`.gitmodules`) to match.
-- [ ] Flip the required repos to **public** (dkzeb/mpi, mpi-te, mpi-mixxx,
-      libmk3). Do this before publishing so the `icon.png` raw URL and
-      cross-links resolve, and replace the "Links to be added on repo
-      publication" placeholders with the now-live URLs.
+- [ ] Confirm the four final repositories exist and are public:
+      `music-pi/music-pi`, `music-pi/daw`, `music-pi/mixxx-mk3`, and
+      `music-pi/libmk3`.
+- [ ] Confirm local remotes and every submodule URL use the final organization
+      URLs, and that a fresh anonymous recursive clone succeeds.
 - [ ] Tag this repo: `git tag v0.9.0-beta.2 && git push origin v0.9.0-beta.2`.
 - [ ] Create the GitHub Release here, attaching (or linking) the image and the
       `.sha256`, and including the os_list URL and release notes.
@@ -133,7 +132,7 @@ Do not proceed to publish if this gate fails.
 
 ## Hotfix / rollback
 
-- A release is the pinned set at a tag. To roll back, re-point OTA at the prior
-  tag; devices advance the whole pinned set as a unit.
+- A release is the pinned set at a tag. To roll back, checksum-verify and flash
+  the prior release image. OTA is not part of the current release candidate.
 - For a hotfix, land the fix in the component repo, bump only that submodule
   pin, re-run Phases 1–5 with a new patch tag. Never hand-patch a device.

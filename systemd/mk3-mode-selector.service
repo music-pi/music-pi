@@ -1,7 +1,8 @@
 [Unit]
 Description=Select MK3 operating mode at boot
 Documentation=file:/opt/mpi-station/mode-selector/README.md
-After=local-fs.target
+Wants=NetworkManager.service
+After=local-fs.target NetworkManager.service
 ConditionPathExists=/var/lib/mpi-station/provisioned
 
 [Service]

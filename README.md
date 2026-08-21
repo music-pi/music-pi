@@ -26,7 +26,7 @@ You do not need to build anything. Grab the latest ready-to-run image and flash
 it to an SD card.
 
 1. **Download** the newest `mpi-station-*.img.xz` from the
-   [Releases page](https://github.com/dkzeb/mpi/releases).
+   [Releases page](https://github.com/music-pi/music-pi/releases).
 2. **Flash** it to an SD card (16 GB or larger) with
    [Raspberry Pi Imager](https://www.raspberrypi.com/software/) (choose *Use
    custom image*), [balenaEtcher](https://etcher.balena.io/), or `dd`:
@@ -42,53 +42,67 @@ it to an SD card.
 
 ### First boot
 
-- Default login: **`mpi` / `maschinepi`**. Change the password before putting the
+- Default login: **`mpi` / `musicpi`**. Change the password before putting the
   device on an untrusted network.
 - Two storage areas are created automatically and grow to fill the card:
   `MIXXX_LIBRARY` → `/home/mpi/Music`, and `MPI_SAMPLES` →
-  `/home/mpi/maschinepi/samples` (preloaded with a starter sample set).
+  `/home/mpi/maschinepi/samples` (ready for your own samples).
 
 ## What this repository is
 
 This repository is MusicPI's **integrator / delivery** repo. It owns what
 neither application repo should: the mutually exclusive systemd mode targets, the
-`mk3-mode-selector`, the fused image build, and over-the-air update tooling. A
+`mk3-mode-selector`, the fused image build, and update policy. A
 release is a reproducible combination of three pinned submodules.
 
 | Path | Owns |
 |---|---|
 | `external/libmk3` | Shared C MK3 driver — single source of truth |
-| `external/mixxx-mk3` | Mixxx provisioning, screen daemon, mappings |
+| `external/mixxx-mk3` | Mixxx mapping, screen daemon, and runtime helpers |
 | `external/maschinepi-te` | MusicPI DAW and Pi image tooling |
 | `image/` | Fused Raspberry Pi OS Lite image build |
 | `systemd/` | Mode targets and selector service |
 | `mode-selector/` | `mk3-mode-selector` binary |
-| `ota/` | Over-the-air update tooling |
+| `ota/` | Update security policy and OTA backlog |
 | `config/` | Mode config store |
 | `docs/specs/` | Authoritative design |
+
+## Roadmap
+
+- **Release candidate:** publish the four Music PI repositories, verify their
+  documentation and pins, and produce a security-checked image candidate.
+- **Beta 0.9.1:** fix the MK3 Wi-Fi password entry defects and land the first
+  post-RC fixes.
+- **Next:** complete repeatable hardware/audio validation and harden OTA.
+
+See the focused [beta blocker list](docs/beta-blocker-triage.md) for detail.
 
 ## Build the image yourself (developers)
 
 ```bash
-git clone --recursive git@github.com:dkzeb/mpi.git
-cd mpi
+git -c url.https://github.com/.insteadOf=git@github.com: clone --recursive \
+  https://github.com/music-pi/music-pi.git
+cd music-pi
 git submodule update --init --recursive        # if not cloned with --recursive
 ./scripts/check-submodules.sh
 ```
 
-> **Component repositories** (MusicPI DAW, MixxxDJ integration, and the libmk3
-> driver) — links to be added on repo publication.
+Component repositories: [MusicPI DAW](https://github.com/music-pi/daw),
+[Mixxx MK3](https://github.com/music-pi/mixxx-mk3), and
+[libmk3](https://github.com/music-pi/libmk3).
 
 Build a fused image from a stock Raspberry Pi OS Lite (arm64) base. All
 compilation, package installation, and provisioning happen on the host (inside
 the `pi-gen` helper container — no host `sudo` needed for the mount step):
 
 ```bash
-./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --compress
+./image/build-image.sh --base /path/to/raspios-lite-arm64.img.xz --mixxx-deb /path/to/mixxx-arm64.deb --compress
 ```
 
-Useful flags: `--maschinepi-binary /path/to/arm64/maschinepi` reuses an existing
-ARM64 build; `--password` sets the injected login; `--data-bootstrap-mb` sizes
+Required: `--mixxx-deb` supplies the pinned ARM64 Mixxx package from a verified
+release asset. Useful flags: `--maschinepi-binary /path/to/arm64/maschinepi`
+reuses an existing ARM64 build; `--password-file` securely sets the injected
+login; `--data-bootstrap-mb` sizes
 the pre-boot data partitions. See [`image/README.md`](image/README.md) for the
 full pipeline and [`docs/hardware-test.md`](docs/hardware-test.md) for on-device
 validation.
@@ -103,10 +117,10 @@ Host-side checks:
 
 ## Releases & updates
 
-Each submodule is pinned to a specific commit; a release bumps all three pins
-together and tags them here. On-device OTA advances the pinned set as a unit
-rather than letting components track branches, so every unit runs a known-good
-combination. See [`ota/README.md`](ota/README.md).
+Each submodule is pinned to a specific commit; a release bumps the tested pins
+together and tags them here. Current devices update from a checksum-verified
+image; OTA remains security-sensitive backlog. See
+[`ota/README.md`](ota/README.md).
 
 ## Contributing
 
@@ -119,8 +133,8 @@ go upstream and are pulled in by bumping the pin.
 
 Copyright (C) 2026 Sebastian Hines.
 
-The mpi-station tooling (image builder, mode selector, systemd units, OTA
-scripts) is released under the **GNU General Public License v3.0** — see
+The mpi-station tooling (image builder, mode selector, systemd units, and
+update-policy files) is released under the **GNU General Public License v3.0** — see
 [`LICENSE`](LICENSE).
 
 The **flashable image** it produces is a *mere aggregation* of separately

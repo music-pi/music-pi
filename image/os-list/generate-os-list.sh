@@ -55,7 +55,7 @@ extract_sha256="$(xz -dc "$image" | sha256sum | awk '{ print $1 }')"
 
 # Default icon: raw asset in the repo if the caller didn't supply one.
 if [[ -z "$icon" ]]; then
-  icon="https://raw.githubusercontent.com/dkzeb/mpi/main/image/os-list/icon.png"
+  icon="https://raw.githubusercontent.com/music-pi/music-pi/main/image/os-list/icon.png"
 fi
 
 result="$(sed \

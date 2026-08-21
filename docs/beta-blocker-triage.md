@@ -45,6 +45,12 @@ documentable can ship as a **KNOWN ISSUE**. Polish and future-proofing is
 | T6 | Mouse daemon forks xdotool per HID report | med-high | **KNOWN ISSUE** | Only in mouse mode (not during beatmixing). Document; fix if time. |
 | T8 | JS globals namespacing + skip identical frames | med | **POST-BETA** | Hygiene + perf; globals fix is cheap and can ride along. |
 
+## MusicPI Station (mode selector)
+
+| Task | Finding | Sev | Verdict | Rationale |
+|---|---|---|---|---|
+| S1 | Wi-Fi password input is incomplete: reveal/hide does not work, digit `1` cannot be entered, and lowercase/uppercase/numeric/symbol layers are not clearly distinguishable | high | **MUST-FIX BEFORE 0.9.1** | A valid Wi-Fi password may be impossible to enter or verify during first-device setup. Acceptance requires a working reveal/hide control, complete digit entry including `1`, visibly distinct input layers, and coverage for lowercase, uppercase, numbers, and common Wi-Fi password symbols. |
+
 ---
 
 ## The beta gate (minimum must-fix set)
@@ -54,6 +60,8 @@ T9 (widget UAF), T13a (yt-dlp `--`).
 
 **MixxxDJ:** T1 (clean build), T2 (overlay dispatch — or disable overlay),
 T3 (LED blanking — or mitigate), T7 (verify RCE scripts absent from the image).
+
+**MusicPI Station:** S1 (complete and clearly presented Wi-Fi password input).
 
 **Strongly recommended if the schedule allows** (each downgrades to a documented
 known-issue otherwise): mpi-te T10; mixxx-mk3 T4, T5.

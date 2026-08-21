@@ -11,6 +11,7 @@ trap 'rm -rf "$tmp_dir"' EXIT
 
 git -C "$repo_root" bundle create "$tmp_dir/mpi-station.bundle" main
 git clone --branch main "$tmp_dir/mpi-station.bundle" "$destination"
-git -C "$destination" remote set-url origin git@github.com:dkzeb/mpi.git
+git -C "$destination" remote set-url origin https://github.com/music-pi/music-pi.git
+git -C "$destination" config url.https://github.com/.insteadOf git@github.com:
 git -C "$destination" submodule update --init --recursive --depth 1
 "$destination/scripts/check-submodules.sh"

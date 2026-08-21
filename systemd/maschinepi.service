@@ -1,6 +1,6 @@
 [Unit]
 Description=MusicPI DAW application
-Documentation=https://github.com/dkzeb/maschinepi-te
+Documentation=https://github.com/music-pi/daw
 PartOf=maschinepi.target
 Conflicts=mixxx.target
 After=sound.target maschinepi-audio-profile.service

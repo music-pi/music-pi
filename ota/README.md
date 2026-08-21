@@ -1,16 +1,17 @@
-# ota/ — generalized over-the-air update tooling (Phase 5)
+# ota/ — update policy and backlog
 
-The image is a seed, not the source of truth. The device carries on-device Git
-checkouts (this integrator repository plus submodules) and updates in place via
-`git pull`, with no reflash. This generalizes the existing Mixxx mechanism in
-`external/mixxx-mk3/pi-setup/mk3-update.sh` and `mk3-check-update.sh`.
+OTA is not implemented in the current release candidate. Update by downloading
+a published image, verifying its checksum, and reflashing the system partition.
+The library and sample partitions remain separate, but users should still back
+up their data.
 
-- OTA pulls the integrator repository, advancing pinned submodules together,
-  then runs each mode's idempotent reprovision entrypoint.
-- MusicPI needs a new Mixxx-equivalent update entrypoint; it currently ships
-  a pi-gen-baked binary with no OTA path.
-- The pre-boot update check and prompt must work headlessly. Its render/input
-  backend therefore needs to be swappable between libmk3 and Xvfb/zenity.
-- The mode selector hosts the check and surfaces the update indicator.
+Any future OTA implementation must:
 
-See the design spec section “OTA updates (no reflash)”.
+- verify signed release metadata and image or package hashes before privileged
+  installation;
+- advance the Station release and all pinned components as one tested unit;
+- install atomically with a recoverable rollback path;
+- work headlessly through the mode selector; and
+- never run an unauthenticated `git pull` as an update mechanism.
+
+Track implementation and threat-model work here before enabling OTA on devices.

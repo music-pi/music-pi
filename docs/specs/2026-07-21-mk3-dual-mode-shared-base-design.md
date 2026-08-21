@@ -14,7 +14,7 @@ Let a single Pi 4 + MK3 rig run either system:
 
 Selection happens on the MK3 itself: normal power-on waits for the controller and brings up an on-screen menu to choose the mode. The stored default determines the initial highlight. Switching modes must not require re-flashing and should be as fast as possible.
 
-The build and the mode/OTA machinery live in a **separate integrator repo** that consumes `libmk3`, `mixxx-mk3`, and `maschinepi-te` as git submodules and produces the flashable image. The existing Mixxx **git-based OTA** (in-place `git pull` updates, no reflash) must be preserved and generalized to both modes.
+The build and the mode and update-policy machinery live in a **separate integrator repo** that consumes `libmk3`, `mixxx-mk3`, and `maschinepi-te` as git submodules and produces the flashable image. The legacy Mixxx git-based updater is superseded and must not ship; future OTA requires authenticated release artifacts and rollback.
 
 ## Background: what the two systems actually are
 
@@ -26,10 +26,10 @@ Both are **stock Raspberry Pi OS Lite (arm64)** workloads that differ only in us
 - Realtime audio via PipeWire; RT tuning is all runtime (`sysctl` swappiness/dirty-ratios, RT priorities, `performance` CPU governor) — see `pi-tools/README.md`.
 
 ### MixxxDJ (`~/dev/mixxx-mk3`)
-- **Not** an image — a provisioning script (`pi-setup/mk3-pi-setup.sh`) that apt-installs onto stock RPi OS Lite and enables a bundle of services.
+- **Not** an image — the repo contains the MK3 mapping, screen daemon, skin, and runtime helpers; a separately verified ARM64 package supplies Mixxx itself.
 - Runtime chain: **Xvfb** (virtual software X display, 960×544) → **Openbox** (fullscreen, no decorations) → **Mixxx (Qt6)** fullscreen. A C daemon **`mk3-screen-daemon`** captures the X framebuffer and mirrors it to the two MK3 screens. Mixxx reads the MK3 via its own HID mapping + `libmk3` (C). Python daemons add mouse/T9/overlay input.
 - Audio: **PipeWire + WirePlumber** (user services, lingering enabled), `pipewire-jack`. Mixxx master out = "Maschine MK3 Analog Surround 4.0" (MK3 USB audio), cue/headphone = "Built-in Audio Stereo" (Pi 3.5mm jack), 48kHz.
-- Extras: Tailscale, SMB/CIFS NAS music mount, MK3 boot splash, OTA update scripts.
+- Runtime helpers: MK3 boot splash, mouse/T9 input, settings overlay, and headphone mirroring.
 
 ### Shared vs. divergent
 
@@ -49,7 +49,7 @@ Install **both** bundles onto **one** RPi OS Lite rootfs and gate each behind a 
 ### Rejected alternative: true dual-boot (`tryboot` + selector)
 A 6-partition card with two isolated OS images and an MK3 boot-menu selector chainloading via the Pi firmware's `tryboot`/`autoboot.txt`. Rejected because:
 - The two systems share kernel, `config.txt`, and audio stack — there is nothing to isolate at boot.
-- The Mixxx side is a provisioning script, not an image; "fusing" is just running two provisioners into one rootfs, not merging two image pipelines.
+- The Mixxx side supplies an ARM64 package plus integration assets; the Station installer composes those with the DAW in one rootfs.
 - Dual-boot costs a bespoke MK3 bootloader, partition/`tryboot` plumbing, a duplicated base OS, doubled updates, and a full reboot per switch — for isolation we do not need.
 
 Dual-boot remains a fallback only if hard hermetic isolation between the two OSes ever becomes a hard requirement (not currently the case).
@@ -125,7 +125,7 @@ Profiles are applied by the target's units on isolate, and torn down by `Conflic
 - Mixxx: `~/.mixxx` (config, DB, mappings, skin), `~/Music` + NAS mount.
 - MusicPI: its `.mpi` project tree / app data dir.
 
-Rationale: one user means one PipeWire instance / one `/run/user/UID` / one lingering user (which the Mixxx provisioner already assumes), and minimal `chown`/`User=`/runtime-dir patching in the provisioners and OTA scripts — keeping the systemd-target and OTA machinery (the design's trickiest area) boring. Isolation is logical (separate data dirs, no shared mutable state between modes), not enforced by filesystem permissions. A dedicated-user-per-mode model was considered and rejected: its hard privilege separation is a nice-to-have on a single-purpose rig but would add two user sessions, per-mode ownership handling, and more awkward `isolate` semantics to the central mechanism.
+Rationale: one user means one PipeWire instance, one `/run/user/UID`, and one lingering user, with minimal ownership and runtime-directory translation in the Station installer and services. Isolation is logical (separate data dirs, no shared mutable state between modes), not enforced by filesystem permissions. A dedicated-user-per-mode model was considered and rejected: its hard privilege separation is a nice-to-have on a single-purpose rig but would add two user sessions, per-mode ownership handling, and more awkward `isolate` semantics to the central mechanism.
 
 ### Config store
 A single small file (e.g. `/var/lib/mk3-mode/config`) holds:
@@ -135,13 +135,13 @@ The selector reads it at boot and the "set default" action writes it.
 
 ## Delivery: integrator repo + submodules
 
-Once this design is planned, the implementation lives in a **new dedicated integrator repo** (working name `mpi-station`), separate from both app repos. It owns the fused image build and the mode/OTA machinery, and pulls the app code in as **git submodules**:
+Once this design is planned, the implementation lives in a **new dedicated integrator repo** (working name `mpi-station`), separate from both app repos. It owns the fused image build and the mode and update-policy machinery, and pulls the app code in as **git submodules**:
 
 - `libmk3` — the C MK3 library (shared USB HID/display/LED primitives).
-- `mixxx-mk3` — the Mixxx provisioning + screen-daemon + mappings/skin.
-- `maschinepi-te` — this repo (DAW app + `pi-tools`).
+- `mixxx-mk3` — the Mixxx screen daemon, mappings/skin, and runtime helpers.
+- `maschinepi-te` — the MusicPI DAW app and its build inputs.
 
-The integrator repo contains: the two systemd targets, `mode-selector.target`, the `mk3-mode-selector` binary, the fused-image build script, and the generalized OTA tooling. The app repos stay independently developable; the integrator bumps submodule refs to compose a release.
+The integrator repo contains: the two systemd targets, `mode-selector.target`, the `mk3-mode-selector` binary, the fused-image build script, and the update policy and future OTA tooling. The app repos stay independently developable; the integrator bumps submodule refs to compose a release.
 
 **Migration note:** the mode-switching + selector code being prototyped in `maschinepi-te` should be **migrated into the integrator repo** once planned — it is not long-term MusicPI-app code.
 
@@ -149,51 +149,49 @@ The integrator repo contains: the two systemd targets, `mode-selector.target`, t
 
 The "one shared `libmk3` submodule" premise only works if there is genuinely one libmk3. Today there are two:
 
-- **`maschinepi-te`** consumes libmk3 as a **git submodule** (`external/mk3` → `git@github.com:dkzeb/libmk3.git`) — the canonical repo, and per the maintainer the **newest** version. A C++ app layer (`src/control/Mk3Controller`, `src/devices/Mk3Device`) and parity tests (`Mk3DisplayParityTests`, `Mk3HidMapParityTests`, `Mk3InputReportParityTests`) sit on top and stay in the app repo.
+- **`maschinepi-te`** consumes libmk3 as a **git submodule** (`external/mk3` → `https://github.com/music-pi/libmk3.git`) — the canonical repo, and per the maintainer the **newest** version. A C++ app layer (`src/control/Mk3Controller`, `src/devices/Mk3Device`) and parity tests (`Mk3DisplayParityTests`, `Mk3HidMapParityTests`, `Mk3InputReportParityTests`) sit on top and stay in the app repo.
 - **`mixxx-mk3`** carries a **stale vendored copy** of libmk3 in `external/mk3` (no `.gitmodules` — pasted source), consumed by its screen-daemon, `mk3_cli`, and Mixxx HID path.
 
 **Unification work (do this first):**
-1. Canonicalize on **`dkzeb/libmk3`** at `maschinepi-te`'s (newest) ref as the single source of truth.
-2. **Audit the drift** between Mixxx's vendored copy and canonical libmk3 — port any Mixxx-only fixes/workarounds that aren't upstream (e.g. the partial-display-rendering workaround `mk3_display_disable_partial_rendering`, any input/output-map deltas) **into** `dkzeb/libmk3`, so nothing regresses when Mixxx switches over. The parity tests in `maschinepi-te` are the reference for correct maps.
-3. Convert `mixxx-mk3/external/mk3` from a vendored copy to a **submodule** of `dkzeb/libmk3` (or have the integrator provide libmk3 and Mixxx build against it), removing the duplicate source.
+1. Canonicalize on **`music-pi/libmk3`** at the DAW's newest ref as the single source of truth.
+2. **Audit the drift** between Mixxx's vendored copy and canonical libmk3 — port any Mixxx-only fixes/workarounds that aren't upstream (e.g. the partial-display-rendering workaround `mk3_display_disable_partial_rendering`, any input/output-map deltas) **into** `music-pi/libmk3`, so nothing regresses when Mixxx switches over. The parity tests in the DAW are the reference for correct maps.
+3. Convert `mixxx-mk3/external/mk3` from a vendored copy to a **submodule** of `music-pi/libmk3` (or have the integrator provide libmk3 and Mixxx build against it), removing the duplicate source.
 4. The integrator repo then references libmk3 **once**; both modes and the `mk3-mode-selector` build against that single submodule.
 
 This is a prerequisite, not deferred cleanup: the selector, both modes' MK3 access, and reproducible builds all depend on a single libmk3.
 
-## OTA updates (no reflash)
+## Updates and future OTA
 
-The image is a **seed**, not the source of truth: it ships with on-device git checkouts (the integrator repo + its submodules) so both modes update in place via `git pull`, never requiring a reflash. This preserves and generalizes the mechanism Mixxx already has.
+The current release updates by checksum-verified image reflash. The legacy
+Mixxx boot-time `git pull` updater is superseded and must not ship: it did not
+authenticate a release artifact before privileged installation.
 
-**Existing Mixxx OTA (to preserve):**
-- `mk3-update.sh` — `git pull --ff-only origin master` on the on-device checkout, then re-copy mappings/skins, re-patch + reinstall systemd units, **rebuild `mk3-screen-daemon`/`mk3_cli` only if their source changed**, re-extract bootsplash frames, `daemon-reload`, restart Mixxx.
-- `mk3-check-update.sh` — pre-boot prompt via `mixxx.service` `ExecStartPre`: fetches, and if behind shows a zenity dialog **on the MK3 left screen** (Xvfb + xdotool), PLAY/STOP mapped to Enter/Escape by a Python button reader, 30s auto-skip.
-
-**Generalization for dual-mode:**
-1. OTA pulls the **integrator** repo (advancing its pinned submodules together), then runs each mode's idempotent **re-provision** entrypoint: rebuild-if-changed, reinstall units/binary, restart its service. Mixxx already has such an entrypoint (`mk3-update.sh`); MusicPI needs an equivalent — it currently ships a pi-gen-baked binary with no OTA path, so an on-device build-or-fetch update path is **new required work**. (Per the pinned policy, components do not each track their own branch; the integrator bump is the unit of update.)
-2. The pre-boot update prompt must work in **both** modes. Mixxx's version depends on Xvfb + zenity, which only exists in Mixxx mode. In MusicPI mode (headless, no X), the prompt must render via the C++ MK3 driver / `libmk3` instead. Factor the "check + prompt + apply" flow so the render/input backend is swappable per mode.
-3. The `mode-selector` hosts the update check and **surfaces an "update available" notification** (it already owns the MK3 at boot and reads Shift), so the indicator + optional prompt appear before either mode's app starts, independent of X. This is the unified replacement for Mixxx's X/zenity-only `ExecStartPre` prompt. The check must be non-blocking on the fast default-boot path (time-boxed, offline-tolerant).
-
-**Decision: submodule update policy = pinned refs bumped by integrator release.** Each submodule (`libmk3`, `mixxx-mk3`, `maschinepi-te`) is pinned to a specific commit; a release is composed by the integrator bumping those refs and tagging. On-device OTA therefore pulls the **integrator** repo (which advances the pinned submodules together), rather than each component tracking its own branch. Rationale: reproducible, known-good combinations across both modes — essential while libmk3 drift is being reconciled and so a Mixxx change can never silently pull an untested libmk3 under MusicPI. (Per-component branch tracking is rejected; a "track latest" dev override may be added later if needed, but is not the shipping default.)
+A future OTA design may surface update availability through the mode selector,
+but it must verify signed release metadata and hashes, advance all pinned
+components as one unit, install atomically, and provide rollback. Components do
+not track branches independently; the integrator release remains the tested
+unit. Until those controls are implemented and threat-modeled, OTA stays
+disabled.
 
 ## Build / packaging
 
 Produce **one** fused RPi OS Lite image from the integrator repo:
-1. Extend the existing MusicPI pi-gen stage (`pi-tools/`) as the base, OR run the MusicPI install into a stock RPi OS Lite rootfs.
-2. Run the Mixxx provisioner (`mk3-pi-setup.sh`, adapted for non-interactive/chroot use: skip interactive Tailscale/SMB prompts, parameterize user/paths) into the same rootfs.
-3. Place the on-device git checkouts (integrator repo + submodules) so OTA `git pull` works post-flash.
+1. Inject the Station release and host-built MusicPI artifact into a stock Raspberry Pi OS Lite ARM64 rootfs.
+2. Install a verified ARM64 Mixxx release package and copy the pinned mapping, skin, and runtime helpers into the same rootfs.
+3. Install the pinned release tree for provenance and runtime assets; do not use it as a privileged update channel.
 4. Install the new units: `maschinepi.target`, `mixxx.target`, `mode-selector.target`, `mk3-mode-selector.service`, and the `mk3-mode-selector` binary.
 5. Set the system default target to `mode-selector.target`; do **not** auto-enable either app's own auto-start (the target owns start-up).
-6. Reconcile shared components installed by both provisioners (PipeWire config, udev `99-mk3` rules, boot splash) so the last-writer is intentional, not accidental.
+6. Reconcile shared runtime components (PipeWire config, udev `99-mk3` rules, boot splash) so the last-writer is intentional, not accidental.
 
 The `mk3-mode-selector` binary builds against the unified `libmk3` submodule (C) for MK3 render/input, plus evdev keyboard read, and issues `systemctl isolate`. Building on libmk3 directly (rather than MusicPI's JUCE C++ layer) keeps the selector small and mode-agnostic.
 
 ## Risks & validations
 
-1. **Shared-component collisions.** Both provisioners touch PipeWire config, `99-mk3` udev rules, and boot splash. Validate that the fused image ends with one coherent set (test both modes' audio + MK3 access after a clean build).
+1. **Shared-component collisions.** Both application stacks need PipeWire configuration, `99-mk3` udev rules, and boot splash assets. Validate that the fused image ends with one coherent set (test both modes' audio + MK3 access after a clean build).
 2. **PipeWire model mismatch.** Mixxx enables PipeWire as a **user** service with lingering; MusicPI's tuning may assume system-level. Pick one model (user-level with lingering is the Mixxx assumption) and make both modes' profiles work under it.
 3. **MK3 enumeration timing** — the selector must keep retrying through cold USB bring-up without delaying first-boot storage preparation indefinitely when the controller is absent.
 4. **Clean teardown on isolate.** Switching from Mixxx must fully stop Xvfb/Openbox/Mixxx/screen-daemon and release the MK3 + audio device before MusicPI claims them (and vice-versa). Verify via `Conflicts=` + explicit device-release ordering.
-5. **Image size / surface.** One rootfs now carries Qt/X/Mixxx/Python/Tailscale/Samba *and* JUCE/Tracktion. Acceptable (dormant services have no RT impact) but note the larger update surface.
+5. **Image size / surface.** One rootfs now carries Qt/X/Mixxx/Python *and* JUCE/Tracktion. Acceptable (dormant services have no RT impact) but note the larger update surface.
 
 ## Testing
 

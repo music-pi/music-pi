@@ -66,6 +66,9 @@ grep -q '^Before=home-mpi-Music.mount home-mpi-maschinepi-samples.mount local-fs
   "$units/mpi-prepare-data.service"
 grep -q '^ExecStart=/usr/local/sbin/mk3-mode-selector --force-menu$' \
   "$units/mk3-mode-selector.service"
+grep -q '^Wants=NetworkManager.service$' "$units/mk3-mode-selector.service"
+grep -q '^After=local-fs.target NetworkManager.service$' \
+  "$units/mk3-mode-selector.service"
 grep -q '^TimeoutStartSec=infinity$' "$units/mk3-mode-selector.service"
 grep -q '^Requires=basic.target local-fs.target$' "$units/mode-selector.target"
 
@@ -78,6 +81,17 @@ fi
 if rg -n '^WantedBy=multi-user.target$' "$units"/maschinepi.service "$units"/mixxx.service \
     "$units"/xvfb.service "$units"/openbox.service "$units"/mk3-*.service; then
   echo "Application services must only be wanted by their mode target" >&2
+  exit 1
+fi
+
+for deprecated_updater in mk3-check-update.sh mk3-update.sh; do
+  if [[ -e "$repo_root/external/mixxx-mk3/pi-setup/$deprecated_updater" ]]; then
+    echo "Deprecated updater must not ship: $deprecated_updater" >&2
+    exit 1
+  fi
+done
+if rg -n "ExecStartPre=.*update|git pull" "$units" "$repo_root/image"; then
+  echo "Unauthenticated update hooks must not ship" >&2
   exit 1
 fi
 

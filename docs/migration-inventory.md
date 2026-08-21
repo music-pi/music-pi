@@ -13,13 +13,13 @@ integrator.
 | MusicPI first-boot and realtime setup | `maschinepi-te:pi-tools/first-boot.*`, `realtime-config.sh`, `pi-image-setup.sh` | `image/` | Reference; adapt through image-build configuration | 2b | These are application provisioning inputs, not shared runtime policy. |
 | MusicPI boot display/listener | `maschinepi-te:pi-tools/mk3-boot-display.*`, `mk3-boot-listener.*` | `mode-selector/`, `image/assets/` | Reuse branding/assets; migrate selector-relevant behavior | 4 | The selector owns the MK3 during boot and replaces app-specific boot ownership. |
 | MusicPI image pipeline | `maschinepi-te:pi-tools/`, repository `scripts/gen-img.sh` | `image/` | Reference as one candidate base | 2b | The base choice must be made after comparing it with stock RPi OS Lite provisioning. |
-| Mixxx provisioner | `mixxx-mk3:pi-setup/mk3-pi-setup.sh` | `image/` | Reference and invoke in noninteractive/chroot mode | 2b | App provisioning stays upstream; fused-image orchestration belongs here. |
-| Mixxx service bundle | `mixxx-mk3:pi-setup/*.service`, NAS mount | `systemd/` | Reference app units; install integrator target/drop-ins | 2b/3 | The target must start the bundle without enabling each service globally. |
-| Mixxx update entrypoint | `mixxx-mk3:pi-setup/mk3-update.sh` | `ota/` | Generalize per mode | 5 | OTA advances the integrator's pins as one tested release. |
-| Mixxx pre-boot update prompt | `mixxx-mk3:pi-setup/mk3-check-update.sh`, `mk3-button-reader.py` | `ota/`, `mode-selector/` | Move check policy; replace X-only UI with selector backend | 5 | Update status must appear before either X or the DAW starts. |
-| MusicPI update entrypoint | Missing | `ota/` | Create | 5 | MusicPI currently has no in-place pull/build/install/restart path. |
+| Mixxx package and assets | Mixxx release asset + `mixxx-mk3` runtime files | `image/` | Verify package; install and compose here | 2b | Privileged provisioning belongs to Station, not the component repo. |
+| Mixxx service bundle | `systemd/` in Station | `systemd/` | Maintain centrally | 2b/3 | The target starts the bundle without enabling each service globally. |
+| Legacy Mixxx updater | Removed from the public component | `ota/` | Keep disabled; design authenticated updates | backlog | The unauthenticated privileged `git pull` path must not ship. |
+| Future update prompt | Legacy scripts removed | `ota/`, `mode-selector/` | Threat-model before implementation | backlog | Only signed, verified releases may be offered. |
+| MusicPI update entrypoint | Missing | `ota/` | Defer until secure OTA design | backlog | Current releases update by verified image reflash. |
 | Shared udev policy | Both repos' `pi-tools/99-mk3.rules` / `pi-setup/99-mk3.rules` | `image/` | Reconcile into one intentionally installed rule | 2b | Avoid accidental last-writer behavior in the fused rootfs. |
-| Shared PipeWire policy | MusicPI realtime/image scripts and Mixxx provisioner | `image/`, `systemd/` | Reconcile base install; apply per-mode runtime profiles | 2b/3 | Both modes share one user PipeWire instance but need different routing/tuning. |
+| Shared PipeWire policy | MusicPI realtime/image scripts and Mixxx runtime | `image/`, `systemd/` | Reconcile base install; apply per-mode runtime profiles | 2b/3 | Both modes share one user PipeWire instance but need different routing/tuning. |
 
 No `systemctl isolate`, `*.target`, or mode-selector prototype was present in the
 pinned MusicPI checkout. Phases 3–4 therefore create those artifacts here

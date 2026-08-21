@@ -10,6 +10,7 @@ Download a stock Raspberry Pi OS Lite **arm64** image, then run:
 ```bash
 ./image/build-image.sh \
   --base /path/to/raspios-lite-arm64.img.xz \
+  --mixxx-deb /path/to/mixxx-arm64.deb \
   --output image/output/mpi-station-test.img \
   --compress
 ```
@@ -46,7 +47,7 @@ package installation, or automatic reboot. Attach the MK3 before power-on. The
 image login is:
 
 - user: `mpi`
-- password: `maschinepi` (or the `--password` value used at build time)
+- password: `musicpi` (or the value supplied through `--password-file`)
 - hostname: `mpi-station`
 
 When the card is inspected on another Linux machine it exposes four filesystems:
@@ -57,8 +58,9 @@ When the card is inspected on another Linux machine it exposes four filesystems:
 - `MPI_SAMPLES`
 
 On the Pi, the last two mount at `/home/mpi/Music` and
-`/home/mpi/maschinepi/samples`; the sample partition already contains the
-pinned starter samples. During the first boot only, their partition boundary is
+`/home/mpi/maschinepi/samples`; the sample partition contains a README and any
+approved sample seed supplied by the release. During the first boot only, its
+boundary is
 adjusted so each receives half of all card space remaining after root. The Pi
 ACT LED repeats three short flashes during this operation. If the MK3 has
 enumerated, both screens show milestone progress through resize, format, sample
@@ -66,7 +68,16 @@ copy, and sync; an absent MK3 does not block preparation.
 
 Every boot opens the selector and waits without a timeout for the MK3 to attach.
 D1/D2 choose a mode directly; the encoder and push navigate/activate; D8 saves
-the highlighted default.
+the highlighted default. D7 opens Wi-Fi setup: turn the encoder to select a
+network and push to connect. For secured networks, enter the password with the
+T9 pads (pad 8 cycles lower/upper/symbols, pad 4 submits, pad 12 cancels, and
+pad 16 backspaces). D6 adds a hidden network by entering its SSID and selecting
+Secure/Open with D7. A successful connection is saved system-wide and is
+available in either mode.
+
+Before release, verify one visible secured network, one open or hidden network,
+and a reboot reconnect. Confirm `nmcli connection show` lists the new profile
+without a user-specific `connection.permissions` value.
 
 ## 3. Verify target ownership and switching
 

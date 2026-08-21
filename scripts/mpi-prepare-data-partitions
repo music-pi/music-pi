@@ -235,9 +235,10 @@ samples_mount="$(mktemp -d /run/mpi-samples.XXXXXX)"
 
 mount "$p3_device" "$mixxx_mount"
 mount "$p4_device" "$samples_mount"
-update_mk3_status 75 "COPYING STARTER SAMPLES"
+update_mk3_status 75 "PREPARING SAMPLE STORAGE"
 printf '%s\n' 'Mixxx library partition - copy music files here.' > "$mixxx_mount/README.txt"
 cp -a "$SAMPLE_SEED/." "$samples_mount/"
+printf '%s\n' 'MusicPI samples partition - copy samples here.' > "$samples_mount/README.txt"
 chown -R 1000:1000 "$mixxx_mount" "$samples_mount"
 update_mk3_status 95 "SYNCING STORAGE"
 sync

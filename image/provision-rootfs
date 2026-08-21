@@ -30,7 +30,7 @@ export DEBIAN_FRONTEND=noninteractive
 log "installing the complete ARM64 runtime into the mounted image"
 apt_retry update
 apt_retry install -y --no-install-recommends \
-  ca-certificates curl git openssh-server sudo \
+  ca-certificates curl git openssh-server sudo network-manager \
   e2fsprogs fdisk util-linux \
   libusb-1.0-0 libasound2 libjack-jackd2-0 libcurl4t64 \
   libfreetype6 libfontconfig1 fonts-dejavu-core \
@@ -50,9 +50,10 @@ apt_retry install -y --no-install-recommends \
   libtag2 libupower-glib3 libvorbis0a libvorbisenc2 libvorbisfile3 libwavpack1
 
 log "installing the pinned Mixxx ARM64 distribution"
-mixxx_deb="$MIXXX_ROOT/mixxx_2.6.0-beta-1_arm64.deb"
+mixxx_deb="$STATE_DIR/mixxx.deb"
 [[ -f "$mixxx_deb" ]] || { log "missing $mixxx_deb"; exit 1; }
 dpkg -i "$mixxx_deb"
+rm -f "$mixxx_deb"
 
 log "creating the fixed runtime user"
 existing_uid1000="$(getent passwd 1000 | cut -d: -f1 || true)"

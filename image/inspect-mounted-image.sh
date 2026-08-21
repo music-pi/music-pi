@@ -88,6 +88,8 @@ done
 
 grep -q '^ExecStart=/usr/local/sbin/mk3-mode-selector --force-menu$' \
   "$root_mount/etc/systemd/system/mk3-mode-selector.service"
+grep -q '^Wants=NetworkManager.service$' \
+  "$root_mount/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^TimeoutStartSec=infinity$' \
   "$root_mount/etc/systemd/system/mk3-mode-selector.service"
 grep -q '^Before=home-mpi-Music.mount home-mpi-maschinepi-samples.mount local-fs.target$' \
@@ -102,8 +104,13 @@ grep -q '^LABEL=MPI_SAMPLES /home/mpi/maschinepi/samples ' "$root_mount/etc/fsta
 [[ "$(e2label "$mixxx_loop")" == MIXXX_LIBRARY ]]
 [[ "$(e2label "$samples_loop")" == MPI_SAMPLES ]]
 [[ -f "$mixxx_mount/README.txt" ]]
-expected_samples="$(find "$root_mount/opt/mpi-station/external/maschinepi-te/samples" -type f | wc -l)"
-actual_samples="$(find "$samples_mount" -type f | wc -l)"
+[[ -f "$samples_mount/README.txt" ]]
+sample_source="$root_mount/opt/mpi-station/external/maschinepi-te/samples"
+expected_samples=0
+if [[ -d "$sample_source" ]]; then
+  expected_samples="$(find "$sample_source" -type f | wc -l)"
+fi
+actual_samples="$(find "$samples_mount" -type f ! -name README.txt | wc -l)"
 [[ "$actual_samples" -eq "$expected_samples" ]]
 
 echo "OS: $(. "$root_mount/etc/os-release"; echo "$PRETTY_NAME")"

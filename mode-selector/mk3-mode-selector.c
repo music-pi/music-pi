@@ -1,6 +1,9 @@
 #define _GNU_SOURCE
 
 #include "mk3.h"
+#include "mk3_output.h"
+#include "t9-input.h"
+#include "wifi.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -23,6 +26,14 @@
 #define MAX_MODES 8
 #define MAX_INPUTS 32
 #define DEFAULT_CONFIG "/var/lib/mk3-mode/config"
+#define DEFAULT_NMCLI "/usr/bin/nmcli"
+
+typedef enum {
+    VIEW_MODE_MENU,
+    VIEW_WIFI_LIST,
+    VIEW_WIFI_HIDDEN_SSID,
+    VIEW_WIFI_PASSWORD,
+} selector_view_t;
 
 typedef struct {
     char target[64];
@@ -38,6 +49,17 @@ typedef struct {
     bool activate;
     bool save_default;
     bool dirty;
+    selector_view_t view;
+    wifi_network_t wifi_networks[WIFI_NETWORK_MAX];
+    int wifi_count;
+    int wifi_selected;
+    bool wifi_scan_requested;
+    bool wifi_choose_requested;
+    bool wifi_hidden_submit_requested;
+    bool wifi_connect_requested;
+    bool hidden_secured;
+    char wifi_status[64];
+    t9_input_t password;
 } selector_state_t;
 
 typedef struct {
@@ -237,6 +259,18 @@ static void uppercase(char* destination, size_t size, const char* source)
     destination[i] = '\0';
 }
 
+static void display_safe(char* destination, size_t size, const char* source)
+{
+    size_t i = 0;
+    for (; source[i] && i + 1 < size; ++i) {
+        unsigned char c = (unsigned char)source[i];
+        if (c >= 'a' && c <= 'z') c -= 32;
+        destination[i] = ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+                          c == ' ' || c == '-') ? (char)c : '-';
+    }
+    destination[i] = '\0';
+}
+
 static void render_menu(mk3_t* device, const selector_state_t* state, const char* status)
 {
     if (!device) return;
@@ -272,8 +306,175 @@ static void render_menu(mk3_t* device, const selector_state_t* state, const char
                   i == state->selected ? white : dim);
     }
     draw_text(right, 24, 202, "PUSH TO START", 2, white);
-    draw_text(right, 24, 234, "D8 SET DEFAULT", 2, dim);
+    draw_text(right, 24, 234, "D7 WIFI  D8 DEFAULT", 2, dim);
 
+    mk3_display_disable_partial_rendering(device, true);
+    (void)mk3_display_draw(device, 0, left);
+    (void)mk3_display_draw(device, 1, right);
+    free(left);
+    free(right);
+}
+
+static void render_wifi_list(mk3_t* device, const selector_state_t* state)
+{
+    if (!device) return;
+    uint16_t* left = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *left);
+    uint16_t* right = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *right);
+    if (!left || !right) {
+        free(left);
+        free(right);
+        return;
+    }
+    const uint16_t orange = rgb565(255, 105, 0);
+    const uint16_t green = rgb565(50, 210, 120);
+    const uint16_t white = rgb565(235, 235, 235);
+    const uint16_t dim = rgb565(100, 100, 100);
+    const wifi_network_t* selected = state->wifi_count > 0
+        ? &state->wifi_networks[state->wifi_selected] : NULL;
+    const wifi_network_t* active = NULL;
+    for (int i = 0; i < state->wifi_count; ++i)
+        if (state->wifi_networks[i].active) active = &state->wifi_networks[i];
+
+    fill_rect(left, 0, 0, SCREEN_WIDTH, 8, orange);
+    draw_text(left, 28, 28, "WIFI SETUP", 3, orange);
+    if (active) {
+        char active_ssid[40];
+        display_safe(active_ssid, sizeof active_ssid, active->ssid);
+        draw_text(left, 28, 80, "CONNECTED", 2, green);
+        draw_text(left, 28, 110, active_ssid, 2, white);
+    } else {
+        draw_text(left, 28, 80, "NOT CONNECTED", 2, dim);
+    }
+    if (selected) {
+        char details[64];
+        snprintf(details, sizeof details, "SIGNAL %d  %s", selected->signal,
+                 selected->enterprise ? "ENTERPRISE" : selected->secured ? "SECURE" : "OPEN");
+        draw_text(left, 28, 166, details, 2, white);
+    }
+    char status[64];
+    display_safe(status, sizeof status, state->wifi_status);
+    draw_text(left, 28, 226, status, 2, dim);
+
+    draw_text(right, 22, 20, "WIFI NETWORKS", 3, orange);
+    if (state->wifi_count == 0) {
+        draw_text(right, 24, 92, "NO NETWORKS FOUND", 2, dim);
+    } else {
+        int first = state->wifi_selected - 2;
+        if (first < 0) first = 0;
+        if (first + 4 > state->wifi_count) first = state->wifi_count - 4;
+        if (first < 0) first = 0;
+        for (int row_index = 0; row_index < 4 && first + row_index < state->wifi_count;
+             ++row_index) {
+            int index = first + row_index;
+            const wifi_network_t* network = &state->wifi_networks[index];
+            char ssid[34];
+            char row[48];
+            display_safe(ssid, sizeof ssid, network->ssid);
+            snprintf(row, sizeof row, "%c%c %s", index == state->wifi_selected ? '>' : ' ',
+                     network->active ? 'C' : network->secured ? 'S' : 'O', ssid);
+            int y = 66 + row_index * 38;
+            if (index == state->wifi_selected)
+                fill_rect(right, 16, y - 5, 448, 31, rgb565(75, 34, 0));
+            draw_text(right, 24, y, row, 2,
+                      index == state->wifi_selected ? white : dim);
+        }
+    }
+    draw_text(right, 22, 220, "PUSH SELECT", 2, white);
+    draw_text(right, 22, 244, "D6 HIDDEN D7 SCAN D8 BACK", 2, dim);
+
+    mk3_display_disable_partial_rendering(device, true);
+    (void)mk3_display_draw(device, 0, left);
+    (void)mk3_display_draw(device, 1, right);
+    free(left);
+    free(right);
+}
+
+static void render_wifi_password(mk3_t* device, const selector_state_t* state)
+{
+    if (!device || (state->view == VIEW_WIFI_PASSWORD && state->wifi_count <= 0)) return;
+    uint16_t* left = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *left);
+    uint16_t* right = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *right);
+    if (!left || !right) {
+        free(left);
+        free(right);
+        return;
+    }
+    const uint16_t orange = rgb565(255, 105, 0);
+    const uint16_t white = rgb565(235, 235, 235);
+    const uint16_t dim = rgb565(100, 100, 100);
+    char ssid[80];
+    char length[32];
+    char visible_input[25];
+    char raw_input[T9_TEXT_MAX + 1];
+    bool hidden_ssid = state->view == VIEW_WIFI_HIDDEN_SSID;
+    t9_input_text(&state->password, raw_input, sizeof raw_input);
+    size_t input_length = strlen(raw_input);
+    if (hidden_ssid) {
+        snprintf(ssid, sizeof ssid, "SECURITY %s", state->hidden_secured ? "SECURE" : "OPEN");
+        display_safe(visible_input, sizeof visible_input, raw_input);
+        snprintf(length, sizeof length, "SSID LENGTH %zu", input_length);
+    } else {
+        display_safe(ssid, sizeof ssid, state->wifi_networks[state->wifi_selected].ssid);
+        size_t stars = input_length < sizeof visible_input - 1 ? input_length : sizeof visible_input - 1;
+        memset(visible_input, 'X', stars);
+        visible_input[stars] = '\0';
+        snprintf(length, sizeof length, "PASSWORD LENGTH %zu", input_length);
+    }
+
+    fill_rect(left, 0, 0, SCREEN_WIDTH, 8, orange);
+    draw_text(left, 28, 26, hidden_ssid ? "HIDDEN WIFI SSID" : "WIFI PASSWORD", 3, orange);
+    draw_text(left, 28, 78, ssid, 2, white);
+    draw_text(left, 28, 130, visible_input, 3, white);
+    draw_text(left, 28, 184, length, 2, dim);
+    char password_status[64];
+    display_safe(password_status, sizeof password_status, state->wifi_status);
+    draw_text(left, 28, 214, password_status, 2, orange);
+    draw_text(left, 28, 240, hidden_ssid ? "D7 TOGGLE SECURITY" : "PASSWORD IS HIDDEN", 2, dim);
+
+    char layer[32];
+    snprintf(layer, sizeof layer, "T9 INPUT  %s", t9_input_layer_name(&state->password));
+    draw_text(right, 22, 18, layer, 3, orange);
+    if (state->password.layer == T9_LAYER_SYMBOLS) {
+        draw_text(right, 22, 66, "SPACE  DOTS   AT    BACK", 2, white);
+        draw_text(right, 22, 104, "SLASH  QUOTE  BRACK CANCEL", 2, white);
+        draw_text(right, 22, 142, "MONEY  PLUS   HASH  LAYER", 2, white);
+        draw_text(right, 22, 180, "TILDE  ZERO   MORE  ENTER", 2, white);
+    } else {
+        draw_text(right, 22, 66, "SPACE  ABC2   DEF3  BACK", 2, white);
+        draw_text(right, 22, 104, "GHI4   JKL5   MNO6  CANCEL", 2, white);
+        draw_text(right, 22, 142, "PQRS7  TUV8   WXYZ9 LAYER", 2, white);
+        draw_text(right, 22, 180, "HASH   ZERO   STAR  ENTER", 2, white);
+    }
+    draw_text(right, 22, 232, "P4 ENTER P12 CANCEL", 2, dim);
+
+    mk3_display_disable_partial_rendering(device, true);
+    (void)mk3_display_draw(device, 0, left);
+    (void)mk3_display_draw(device, 1, right);
+    free(left);
+    free(right);
+}
+
+static void render_wifi_working(mk3_t* device, const char* heading, const char* message)
+{
+    if (!device) return;
+    uint16_t* left = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *left);
+    uint16_t* right = calloc(SCREEN_WIDTH * SCREEN_HEIGHT, sizeof *right);
+    if (!left || !right) {
+        free(left);
+        free(right);
+        return;
+    }
+    const uint16_t orange = rgb565(255, 105, 0);
+    const uint16_t white = rgb565(235, 235, 235);
+    char safe_heading[64];
+    char safe_message[64];
+    display_safe(safe_heading, sizeof safe_heading, heading);
+    display_safe(safe_message, sizeof safe_message, message);
+    fill_rect(left, 0, 0, SCREEN_WIDTH, 8, orange);
+    fill_rect(right, 0, 0, SCREEN_WIDTH, 8, orange);
+    draw_text(left, 28, 66, safe_heading, 4, orange);
+    draw_text(left, 28, 154, "PLEASE WAIT", 3, white);
+    draw_text(right, 24, 84, safe_message, 3, white);
     mk3_display_disable_partial_rendering(device, true);
     (void)mk3_display_draw(device, 0, left);
     (void)mk3_display_draw(device, 1, right);
@@ -328,13 +529,85 @@ static void print_console_menu(const selector_state_t* state)
     fprintf(stderr, "Arrow keys select, Enter starts, D saves default.\n");
 }
 
+static void update_pad_leds(mk3_t* device, const selector_state_t* state)
+{
+    if (!device) return;
+    for (int pad = 1; pad <= 16; ++pad) {
+        char name[8];
+        uint8_t color = 0;
+        if (state->view == VIEW_WIFI_PASSWORD || state->view == VIEW_WIFI_HIDDEN_SSID) {
+            if (pad == 4) color = 20;
+            else if (pad == 8) color = 40;
+            else if (pad == 12) color = 4;
+            else if (pad == 16 || pad == state->password.pending_pad) color = 68;
+            else color = 32;
+        }
+        snprintf(name, sizeof name, "p%d", pad);
+        (void)mk3_led_set_indexed_color_deferred(device, name, color, NULL);
+    }
+    (void)mk3_output_flush_report(device, 0x81);
+}
+
+static void choose_wifi_network(selector_state_t* state)
+{
+    if (!state || state->wifi_count <= 0) return;
+    wifi_network_t* network = &state->wifi_networks[state->wifi_selected];
+    if (network->enterprise) {
+        snprintf(state->wifi_status, sizeof state->wifi_status,
+                 "ENTERPRISE WIFI UNSUPPORTED");
+        state->dirty = true;
+        return;
+    }
+    if (network->secured) {
+        t9_input_reset(&state->password);
+        snprintf(state->wifi_status, sizeof state->wifi_status, "ENTER PASSWORD");
+        state->view = VIEW_WIFI_PASSWORD;
+        state->dirty = true;
+        return;
+    }
+    state->wifi_connect_requested = true;
+}
+
 static void button_callback(const char* name, bool pressed, void* userdata)
 {
     selector_state_t* state = userdata;
     if (strcmp(name, "shift") == 0) state->shift = pressed;
     if (!pressed) return;
+    if (state->view == VIEW_WIFI_PASSWORD || state->view == VIEW_WIFI_HIDDEN_SSID) {
+        if (strcmp(name, "navPush") == 0) {
+            if (state->view == VIEW_WIFI_PASSWORD) state->wifi_connect_requested = true;
+            else state->wifi_hidden_submit_requested = true;
+        } else if (strcmp(name, "d7") == 0 && state->view == VIEW_WIFI_HIDDEN_SSID) {
+            state->hidden_secured = !state->hidden_secured;
+            state->dirty = true;
+        } else if (strcmp(name, "d8") == 0) {
+            t9_input_reset(&state->password);
+            state->view = VIEW_WIFI_LIST;
+            state->dirty = true;
+        }
+        return;
+    }
+    if (state->view == VIEW_WIFI_LIST) {
+        if (strcmp(name, "navPush") == 0) state->wifi_choose_requested = true;
+        else if (strcmp(name, "d6") == 0) {
+            t9_input_reset(&state->password);
+            state->hidden_secured = true;
+            snprintf(state->wifi_status, sizeof state->wifi_status, "ENTER HIDDEN SSID");
+            state->view = VIEW_WIFI_HIDDEN_SSID;
+            state->dirty = true;
+        } else if (strcmp(name, "d7") == 0) state->wifi_scan_requested = true;
+        else if (strcmp(name, "d8") == 0) {
+            state->view = VIEW_MODE_MENU;
+            state->dirty = true;
+        }
+        return;
+    }
     if (strcmp(name, "navPush") == 0) state->activate = true;
-    else if (strcmp(name, "d8") == 0) state->save_default = true;
+    else if (strcmp(name, "d7") == 0) {
+        state->view = VIEW_WIFI_LIST;
+        state->wifi_scan_requested = true;
+        state->dirty = true;
+    } else if (strcmp(name, "d8") == 0) state->save_default = true;
     else if (name[0] == 'd' && name[1] >= '1' && name[1] <= '8' && name[2] == '\0') {
         const int index = name[1] - '1';
         if (index < state->count) {
@@ -345,12 +618,30 @@ static void button_callback(const char* name, bool pressed, void* userdata)
     }
 }
 
+static void pad_callback(uint8_t pad_number, bool pressed, uint16_t pressure,
+                         void* userdata)
+{
+    (void)pressure;
+    selector_state_t* state = userdata;
+    if (!pressed || (state->view != VIEW_WIFI_PASSWORD &&
+                     state->view != VIEW_WIFI_HIDDEN_SSID)) return;
+    t9_event_t event = t9_input_press(&state->password, pad_number, monotonic_ms());
+    if (event == T9_EVENT_SUBMIT) {
+        if (state->view == VIEW_WIFI_PASSWORD) state->wifi_connect_requested = true;
+        else state->wifi_hidden_submit_requested = true;
+    } else if (event == T9_EVENT_CANCEL) state->view = VIEW_WIFI_LIST;
+    if (event != T9_EVENT_NONE) state->dirty = true;
+}
+
 static void stepper_callback(int8_t direction, uint8_t position, void* userdata)
 {
     (void)position;
     selector_state_t* state = userdata;
-    if (!state->count) return;
-    state->selected = (state->selected + (direction > 0 ? 1 : state->count - 1)) % state->count;
+    if (state->view == VIEW_WIFI_PASSWORD || state->view == VIEW_WIFI_HIDDEN_SSID) return;
+    int count = state->view == VIEW_WIFI_LIST ? state->wifi_count : state->count;
+    if (!count) return;
+    int* selected = state->view == VIEW_WIFI_LIST ? &state->wifi_selected : &state->selected;
+    *selected = (*selected + (direction > 0 ? 1 : count - 1)) % count;
     state->dirty = true;
 }
 
@@ -398,6 +689,40 @@ static void keyboard_events(keyboard_set_t* keyboards, selector_state_t* state)
     for (int i = 0; i < keyboards->count; ++i) {
         while (read(keyboards->fds[i], &event, sizeof event) == sizeof event) {
             if (event.type != EV_KEY || event.value != 1) continue;
+            if (state->view == VIEW_WIFI_PASSWORD || state->view == VIEW_WIFI_HIDDEN_SSID) {
+                if (event.code == KEY_ENTER || event.code == KEY_KPENTER) {
+                    if (state->view == VIEW_WIFI_PASSWORD) state->wifi_connect_requested = true;
+                    else state->wifi_hidden_submit_requested = true;
+                } else if (event.code == KEY_BACKSPACE) {
+                    (void)t9_input_press(&state->password, 16, monotonic_ms());
+                    state->dirty = true;
+                } else if (event.code == KEY_ESC) {
+                    t9_input_reset(&state->password);
+                    state->view = VIEW_WIFI_LIST;
+                    state->dirty = true;
+                }
+                continue;
+            }
+            if (state->view == VIEW_WIFI_LIST) {
+                if (event.code == KEY_UP || event.code == KEY_LEFT) {
+                    if (state->wifi_count > 0)
+                        state->wifi_selected = (state->wifi_selected + state->wifi_count - 1) %
+                                               state->wifi_count;
+                    state->dirty = true;
+                } else if (event.code == KEY_DOWN || event.code == KEY_RIGHT) {
+                    if (state->wifi_count > 0)
+                        state->wifi_selected = (state->wifi_selected + 1) % state->wifi_count;
+                    state->dirty = true;
+                } else if (event.code == KEY_ENTER || event.code == KEY_KPENTER) {
+                    state->wifi_choose_requested = true;
+                } else if (event.code == KEY_R) {
+                    state->wifi_scan_requested = true;
+                } else if (event.code == KEY_ESC) {
+                    state->view = VIEW_MODE_MENU;
+                    state->dirty = true;
+                }
+                continue;
+            }
             if (event.code == KEY_UP || event.code == KEY_LEFT) {
                 state->selected = (state->selected + state->count - 1) % state->count;
                 state->dirty = true;
@@ -408,6 +733,10 @@ static void keyboard_events(keyboard_set_t* keyboards, selector_state_t* state)
                 state->activate = true;
             } else if (event.code == KEY_D) {
                 state->save_default = true;
+            } else if (event.code == KEY_W) {
+                state->view = VIEW_WIFI_LIST;
+                state->wifi_scan_requested = true;
+                state->dirty = true;
             } else if (event.code >= KEY_1 && event.code <= KEY_8) {
                 int index = event.code - KEY_1;
                 if (index < state->count) {
@@ -423,6 +752,7 @@ static mk3_t* open_mk3(selector_state_t* state)
 {
     mk3_t* device = mk3_open();
     if (device) {
+        mk3_input_set_pad_callback(device, pad_callback, state);
         mk3_input_set_button_callback(device, button_callback, state);
         mk3_input_set_stepper_callback(device, stepper_callback, state);
     }
@@ -562,8 +892,10 @@ int main(int argc, char** argv)
     const char* set_mode = NULL;
     const char* status_file = NULL;
     const char* status_ready_file = NULL;
+    const char* nmcli = DEFAULT_NMCLI;
     bool dry_run = false;
     bool force_menu = false;
+    bool scan_wifi = false;
     int poll_ms = 1800;
 
     for (int i = 1; i < argc; ++i) {
@@ -572,18 +904,32 @@ int main(int argc, char** argv)
         else if (strcmp(argv[i], "--set-default") == 0 && i + 1 < argc) set_mode = argv[++i];
         else if (strcmp(argv[i], "--status-file") == 0 && i + 1 < argc) status_file = argv[++i];
         else if (strcmp(argv[i], "--status-ready-file") == 0 && i + 1 < argc) status_ready_file = argv[++i];
+        else if (strcmp(argv[i], "--nmcli") == 0 && i + 1 < argc) nmcli = argv[++i];
+        else if (strcmp(argv[i], "--wifi-scan") == 0) scan_wifi = true;
         else if (strcmp(argv[i], "--poll-ms") == 0 && i + 1 < argc) poll_ms = atoi(argv[++i]);
         else if (strcmp(argv[i], "--dry-run") == 0) dry_run = true;
         else if (strcmp(argv[i], "--force-menu") == 0) force_menu = true;
         else {
             fprintf(stderr, "Usage: %s [--config FILE] [--dry-run] [--force-menu] "
                             "[--poll-ms N] [--select MODE] [--set-default MODE] "
-                            "[--status-file FILE [--status-ready-file FILE]]\n", argv[0]);
+                            "[--status-file FILE [--status-ready-file FILE]] "
+                            "[--nmcli FILE] [--wifi-scan]\n", argv[0]);
             return 2;
         }
     }
 
     selector_state_t state = {0};
+    state.view = VIEW_MODE_MENU;
+    t9_input_reset(&state.password);
+    if (scan_wifi) {
+        wifi_network_t networks[WIFI_NETWORK_MAX] = {0};
+        int count = wifi_scan(nmcli, networks, WIFI_NETWORK_MAX);
+        if (count < 0) return 1;
+        for (int i = 0; i < count; ++i)
+            printf("%s\t%d\t%s\t%s\n", networks[i].active ? "active" : "available",
+                   networks[i].signal, networks[i].security, networks[i].ssid);
+        return 0;
+    }
     if (status_file)
         return run_status_display(&state, status_file, status_ready_file, dry_run);
     if (load_config(config, &state) != 0) return 1;
@@ -630,13 +976,96 @@ int main(int argc, char** argv)
         if (!device && monotonic_ms() >= next_open) {
             device = open_mk3(&state);
             next_open = monotonic_ms() + 500;
-            if (device) state.dirty = true;
+            if (device) {
+                state.dirty = true;
+                update_pad_leds(device, &state);
+            }
         }
         if (device && mk3_input_poll_ex(device) < 0) {
             mk3_close(device);
             device = NULL;
         }
         keyboard_events(&keyboards, &state);
+        if ((state.view == VIEW_WIFI_PASSWORD || state.view == VIEW_WIFI_HIDDEN_SSID) &&
+            t9_input_tick(&state.password, monotonic_ms()) == T9_EVENT_CHANGED)
+            state.dirty = true;
+        if (state.wifi_scan_requested) {
+            render_wifi_working(device, "WIFI SETUP", "SCANNING NETWORKS");
+            wifi_network_t scanned[WIFI_NETWORK_MAX] = {0};
+            int count = wifi_scan(nmcli, scanned, WIFI_NETWORK_MAX);
+            if (count >= 0) {
+                memcpy(state.wifi_networks, scanned, (size_t)count * sizeof scanned[0]);
+                state.wifi_count = count;
+                if (state.wifi_selected >= count) state.wifi_selected = count > 0 ? count - 1 : 0;
+                snprintf(state.wifi_status, sizeof state.wifi_status,
+                         count > 0 ? "SELECT A NETWORK" : "NO NETWORKS FOUND");
+            } else {
+                snprintf(state.wifi_status, sizeof state.wifi_status, "WIFI SCAN FAILED");
+            }
+            state.wifi_scan_requested = false;
+            state.dirty = true;
+        }
+        if (state.wifi_choose_requested) {
+            choose_wifi_network(&state);
+            state.wifi_choose_requested = false;
+        }
+        if (state.wifi_hidden_submit_requested) {
+            char hidden_ssid[T9_TEXT_MAX + 1];
+            t9_input_text(&state.password, hidden_ssid, sizeof hidden_ssid);
+            size_t ssid_length = strlen(hidden_ssid);
+            if (ssid_length == 0) {
+                snprintf(state.wifi_status, sizeof state.wifi_status, "SSID IS REQUIRED");
+            } else if (ssid_length > 32) {
+                snprintf(state.wifi_status, sizeof state.wifi_status, "SSID TOO LONG");
+            } else {
+                int index = state.wifi_count < WIFI_NETWORK_MAX
+                    ? state.wifi_count++ : WIFI_NETWORK_MAX - 1;
+                wifi_network_t* hidden = &state.wifi_networks[index];
+                memset(hidden, 0, sizeof *hidden);
+                snprintf(hidden->ssid, sizeof hidden->ssid, "%s", hidden_ssid);
+                snprintf(hidden->security, sizeof hidden->security, "%s",
+                         state.hidden_secured ? "WPA-PSK" : "--");
+                hidden->secured = state.hidden_secured;
+                hidden->hidden = true;
+                state.wifi_selected = index;
+                t9_input_reset(&state.password);
+                if (hidden->secured) {
+                    snprintf(state.wifi_status, sizeof state.wifi_status, "ENTER PASSWORD");
+                    state.view = VIEW_WIFI_PASSWORD;
+                } else {
+                    state.wifi_connect_requested = true;
+                }
+            }
+            explicit_bzero(hidden_ssid, sizeof hidden_ssid);
+            state.wifi_hidden_submit_requested = false;
+            state.dirty = true;
+        }
+        if (state.wifi_connect_requested && state.wifi_count > 0) {
+            wifi_network_t* network = &state.wifi_networks[state.wifi_selected];
+            char password[T9_TEXT_MAX + 1];
+            t9_input_text(&state.password, password, sizeof password);
+            size_t password_length = strlen(password);
+            if (network->secured && password_length < 8) {
+                snprintf(state.wifi_status, sizeof state.wifi_status, "PASSWORD TOO SHORT");
+                state.view = VIEW_WIFI_PASSWORD;
+            } else {
+                render_wifi_working(device, "WIFI SETUP", "CONNECTING");
+                int connected = wifi_connect(nmcli, network, password);
+                if (connected == 0) {
+                    for (int i = 0; i < state.wifi_count; ++i)
+                        state.wifi_networks[i].active = i == state.wifi_selected;
+                    snprintf(state.wifi_status, sizeof state.wifi_status, "CONNECTED");
+                    t9_input_reset(&state.password);
+                    state.view = VIEW_WIFI_LIST;
+                } else {
+                    snprintf(state.wifi_status, sizeof state.wifi_status, "CONNECTION FAILED");
+                    state.view = network->secured ? VIEW_WIFI_PASSWORD : VIEW_WIFI_LIST;
+                }
+            }
+            explicit_bzero(password, sizeof password);
+            state.wifi_connect_requested = false;
+            state.dirty = true;
+        }
         if (state.save_default) {
             if (save_default(config, &state) == 0) {
                 state.default_index = state.selected;
@@ -648,8 +1077,14 @@ int main(int argc, char** argv)
             state.save_default = false;
         }
         if (state.dirty) {
-            render_menu(device, &state, "MODE SELECT");
-            print_console_menu(&state);
+            if (state.view == VIEW_WIFI_LIST) render_wifi_list(device, &state);
+            else if (state.view == VIEW_WIFI_PASSWORD || state.view == VIEW_WIFI_HIDDEN_SSID)
+                render_wifi_password(device, &state);
+            else {
+                render_menu(device, &state, "MODE SELECT");
+                print_console_menu(&state);
+            }
+            update_pad_leds(device, &state);
             state.dirty = false;
         }
         usleep(10000);

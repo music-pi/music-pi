@@ -4,7 +4,7 @@ set -euo pipefail
 image_path="${1:?image path required}"
 release_tree="${2:?release tree required}"
 artifacts_dir="${3:?artifact directory required}"
-password="${4:-maschinepi}"
+password_file="${4:?password file required}"
 original_size_bytes="${5:?original image size required}"
 rootfs_headroom_mb="${6:?rootfs headroom required}"
 mixxx_library_mb="${7:?Mixxx library size required}"
@@ -108,14 +108,18 @@ mount "$samples_loop" "$samples_mount"
   --boot "$boot_mount" \
   --release-tree "$release_tree" \
   --artifacts-dir "$artifacts_dir" \
-  --password "$password"
+  --password-file "$password_file"
 
 cat >> "$root_mount/etc/fstab" <<'EOF'
 LABEL=MIXXX_LIBRARY /home/mpi/Music ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2
 LABEL=MPI_SAMPLES /home/mpi/maschinepi/samples ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2
 EOF
 
-cp -a "$release_tree/external/maschinepi-te/samples/." "$samples_mount/"
+sample_source="$release_tree/external/maschinepi-te/samples"
+if [[ -d "$sample_source" ]]; then
+  cp -a "$sample_source/." "$samples_mount/"
+fi
+printf '%s\n' 'MusicPI samples partition - copy samples here.' > "$samples_mount/README.txt"
 printf '%s\n' 'Mixxx library partition - copy music files here.' > "$mixxx_mount/README.txt"
 chown -R 1000:1000 "$mixxx_mount" "$samples_mount"
 

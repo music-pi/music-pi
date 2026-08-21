@@ -22,10 +22,10 @@ check() { # path expected_short_sha
   fi
 }
 
-check external/libmk3                         24c5cc0
-check external/mixxx-mk3                      01cbf8a
-check external/maschinepi-te                  ff7cc6e
-check external/mixxx-mk3/external/mk3         24c5cc0
-check external/maschinepi-te/external/mk3      24c5cc0
+check external/libmk3                         ca3627a
+check external/mixxx-mk3                      dd61c32
+check external/maschinepi-te                  841c01d
+check external/mixxx-mk3/external/mk3         ca3627a
+check external/maschinepi-te/external/mk3      ca3627a
 
 exit "$fail"
