@@ -33,6 +33,8 @@ void t9_input_reset(t9_input_t* input);
 t9_event_t t9_input_press(t9_input_t* input, int pad, int64_t now_ms);
 t9_event_t t9_input_tick(t9_input_t* input, int64_t now_ms);
 void t9_input_text(const t9_input_t* input, char* output, size_t output_size);
+void t9_input_display(const t9_input_t* input, bool revealed,
+                      char* output, size_t output_size);
 size_t t9_input_length(const t9_input_t* input);
 const char* t9_input_layer_name(const t9_input_t* input);
 

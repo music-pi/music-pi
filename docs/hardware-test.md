@@ -70,10 +70,11 @@ Every boot opens the selector and waits without a timeout for the MK3 to attach.
 D1/D2 choose a mode directly; the encoder and push navigate/activate; D8 saves
 the highlighted default. D7 opens Wi-Fi setup: turn the encoder to select a
 network and push to connect. For secured networks, enter the password with the
-T9 pads (pad 8 cycles lower/upper/symbols, pad 4 submits, pad 12 cancels, and
-pad 16 backspaces). D6 adds a hidden network by entering its SSID and selecting
-Secure/Open with D7. A successful connection is saved system-wide and is
-available in either mode.
+T9 pads (pad 8 cycles the labelled lower/upper/symbol layers, pad 1 cycles `#`
+then `1`, pad 4 submits, pad 12 cancels, and pad 16 backspaces). Hold D7 to
+reveal the exact password and release D7 to mask it. D6 adds a hidden network by
+entering its SSID and selecting Secure/Open with D7. A successful connection is
+saved system-wide and is available in either mode.
 
 Before release, verify one visible secured network, one open or hidden network,
 and a reboot reconnect. Confirm `nmcli connection show` lists the new profile

@@ -21,9 +21,11 @@ layer, to stay small. The menu has no timeout. D1/D2 activate their modes
 directly, the navigation encoder and push select/activate, and D8 stores the
 highlighted mode as the next default.
 In Wi-Fi setup, D6 adds a hidden network, D7 rescans, and D8 returns to mode
-selection. T9 pad 4 submits, pad 8 cycles lower/upper/symbol layers, pad 12
-cancels, and pad 16 backspaces. NetworkManager stores successful profiles
-system-wide for both application modes.
+selection. During password entry, hold D7 to reveal the password and release it
+to mask it again. T9 pad 4 submits, pad 8 cycles the visibly labelled
+lower/upper/symbol layers, pad 12 cancels, and pad 16 backspaces. Pad 1 cycles
+between `#` and `1`. NetworkManager stores successful profiles system-wide for
+both application modes.
 
 Keyboard arrows, number keys, Enter, D, and W provide the equivalent bench path.
 

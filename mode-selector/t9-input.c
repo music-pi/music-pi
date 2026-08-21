@@ -12,13 +12,13 @@ enum {
 static const char* characters_for(t9_layer_t layer, int pad)
 {
     static const char* lower[17] = {
-        [1] = "#", [2] = "0+", [3] = "*",
+        [1] = "#1", [2] = "0+", [3] = "*",
         [5] = "pqrs7", [6] = "tuv8", [7] = "wxyz9",
         [9] = "ghi4", [10] = "jkl5", [11] = "mno6",
         [13] = " ", [14] = "abc2", [15] = "def3",
     };
     static const char* upper[17] = {
-        [1] = "#", [2] = "0+", [3] = "*",
+        [1] = "#1", [2] = "0+", [3] = "*",
         [5] = "PQRS7", [6] = "TUV8", [7] = "WXYZ9",
         [9] = "GHI4", [10] = "JKL5", [11] = "MNO6",
         [13] = " ", [14] = "ABC2", [15] = "DEF3",
@@ -118,6 +118,20 @@ void t9_input_text(const t9_input_t* input, char* output, size_t output_size)
     output[length] = '\0';
 }
 
+void t9_input_display(const t9_input_t* input, bool revealed,
+                      char* output, size_t output_size)
+{
+    if (!output || output_size == 0) return;
+    if (revealed) {
+        t9_input_text(input, output, output_size);
+        return;
+    }
+    size_t length = t9_input_length(input);
+    if (length >= output_size) length = output_size - 1;
+    memset(output, 'X', length);
+    output[length] = '\0';
+}
+
 size_t t9_input_length(const t9_input_t* input)
 {
     if (!input) return 0;
@@ -126,7 +140,7 @@ size_t t9_input_length(const t9_input_t* input)
 
 const char* t9_input_layer_name(const t9_input_t* input)
 {
-    if (!input || input->layer == T9_LAYER_LOWER) return "abc";
-    if (input->layer == T9_LAYER_UPPER) return "ABC";
-    return "SYM";
+    if (!input || input->layer == T9_LAYER_LOWER) return "LOWER";
+    if (input->layer == T9_LAYER_UPPER) return "UPPER";
+    return "SYMBOLS";
 }
