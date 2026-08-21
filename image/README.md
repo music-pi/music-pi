@@ -35,7 +35,7 @@ artifact.
 The injected test login is `mpi` / `musicpi` unless `--password-file` is supplied.
 Change it before putting the device on an untrusted network.
 
-The build must reconcile shared components touched by both provisioners,
+The build must reconcile shared components needed by both application stacks,
 including PipeWire configuration, `99-mk3` udev rules, and the boot splash, so
 the last writer is intentional.
 

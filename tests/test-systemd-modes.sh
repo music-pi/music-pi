@@ -84,4 +84,15 @@ if rg -n '^WantedBy=multi-user.target$' "$units"/maschinepi.service "$units"/mix
   exit 1
 fi
 
+for deprecated_updater in mk3-check-update.sh mk3-update.sh; do
+  if [[ -e "$repo_root/external/mixxx-mk3/pi-setup/$deprecated_updater" ]]; then
+    echo "Deprecated updater must not ship: $deprecated_updater" >&2
+    exit 1
+  fi
+done
+if rg -n "ExecStartPre=.*update|git pull" "$units" "$repo_root/image"; then
+  echo "Unauthenticated update hooks must not ship" >&2
+  exit 1
+fi
+
 echo "systemd mode invariants: PASS"

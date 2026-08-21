@@ -12,7 +12,7 @@ The component repos are:
 | libmk3 | Shared MK3 driver | MIT |
 | daw (MusicPI DAW) | MusicPI DAW | GPLv3 |
 | mixxx-mk3 (MixxxDJ) | MixxxDJ integration | GPLv2-or-later |
-| music-pi (this repo) | Integrator / image / OTA | GPLv3 |
+| music-pi (this repo) | Integrator / image / update policy | GPLv3 |
 
 ## Versioning
 
@@ -22,7 +22,7 @@ The component repos are:
   pins. The release image is version-stamped:
   `mpi-station-vMAJOR.MINOR.PATCH[-PRERELEASE].img.xz`.
 - A release is defined entirely by the submodule commit pins recorded in this
-  repo at the tag. OTA advances the whole pinned set together.
+  repo at the tag. Current updates use the verified release image.
 
 ---
 
@@ -131,7 +131,7 @@ Do not proceed to publish if this gate fails.
 
 ## Hotfix / rollback
 
-- A release is the pinned set at a tag. To roll back, re-point OTA at the prior
-  tag; devices advance the whole pinned set as a unit.
+- A release is the pinned set at a tag. To roll back, checksum-verify and flash
+  the prior release image. OTA is not part of the current release candidate.
 - For a hotfix, land the fix in the component repo, bump only that submodule
   pin, re-run Phases 1–5 with a new patch tag. Never hand-patch a device.

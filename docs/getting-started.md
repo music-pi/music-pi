@@ -104,8 +104,8 @@ in the browser.
 ## Updating
 
 Grab the latest image from the [Releases page](https://github.com/music-pi/music-pi/releases)
-and re-flash, or use the built-in update flow if your release includes it.
-Your data partitions (library and samples) are separate from the system, so a
+and verify its checksum before reflashing. OTA is not available in the current
+release candidate. Your data partitions are separate from the system, so a
 re-flash keeps your content — but back up anything important first.
 
 ## Troubleshooting

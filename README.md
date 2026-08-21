@@ -52,7 +52,7 @@ it to an SD card.
 
 This repository is MusicPI's **integrator / delivery** repo. It owns what
 neither application repo should: the mutually exclusive systemd mode targets, the
-`mk3-mode-selector`, the fused image build, and over-the-air update tooling. A
+`mk3-mode-selector`, the fused image build, and update policy. A
 release is a reproducible combination of three pinned submodules.
 
 | Path | Owns |
@@ -63,7 +63,7 @@ release is a reproducible combination of three pinned submodules.
 | `image/` | Fused Raspberry Pi OS Lite image build |
 | `systemd/` | Mode targets and selector service |
 | `mode-selector/` | `mk3-mode-selector` binary |
-| `ota/` | Over-the-air update tooling |
+| `ota/` | Update security policy and OTA backlog |
 | `config/` | Mode config store |
 | `docs/specs/` | Authoritative design |
 
@@ -116,10 +116,10 @@ Host-side checks:
 
 ## Releases & updates
 
-Each submodule is pinned to a specific commit; a release bumps all three pins
-together and tags them here. On-device OTA advances the pinned set as a unit
-rather than letting components track branches, so every unit runs a known-good
-combination. See [`ota/README.md`](ota/README.md).
+Each submodule is pinned to a specific commit; a release bumps the tested pins
+together and tags them here. Current devices update from a checksum-verified
+image; OTA remains security-sensitive backlog. See
+[`ota/README.md`](ota/README.md).
 
 ## Contributing
 
@@ -132,8 +132,8 @@ go upstream and are pulled in by bumping the pin.
 
 Copyright (C) 2026 Sebastian Hines.
 
-The mpi-station tooling (image builder, mode selector, systemd units, OTA
-scripts) is released under the **GNU General Public License v3.0** — see
+The mpi-station tooling (image builder, mode selector, systemd units, and
+update-policy files) is released under the **GNU General Public License v3.0** — see
 [`LICENSE`](LICENSE).
 
 The **flashable image** it produces is a *mere aggregation* of separately

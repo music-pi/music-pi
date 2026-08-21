@@ -23,7 +23,7 @@ check() { # path expected_short_sha
 }
 
 check external/libmk3                         24c5cc0
-check external/mixxx-mk3                      01cbf8a
+check external/mixxx-mk3                      f71af64
 check external/maschinepi-te                  ff7cc6e
 check external/mixxx-mk3/external/mk3         24c5cc0
 check external/maschinepi-te/external/mk3      24c5cc0
